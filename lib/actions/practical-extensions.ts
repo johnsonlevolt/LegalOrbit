@@ -1,0 +1,283 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { createClient } from '@/lib/supabase/server'
+import { hashCouponCode } from '@/lib/security/hash'
+import type {
+  ActionResult,
+  AgencyRule,
+  CaseCommunication,
+  CaseEstimate,
+  CaseFile,
+  CaseReview,
+  DocumentCheck,
+  UploadLink,
+} from '@/types/database'
+
+const REVIEW_ITEMS = [
+  '氏名・法人名・所在地の表記を確認',
+  '日付・申請区分を確認',
+  '添付書類の有効期限を確認',
+  '署名・押印・委任状を確認',
+  '提出先の手数料・部数を確認',
+]
+
+export async function getUploadLinks(caseId: string): Promise<UploadLink[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data, error } = await supabase.from('upload_links').select('*').eq('case_id', caseId).eq('user_id', user.id).order('created_at', { ascending: false })
+  if (error) {
+    if (error.message.includes('upload_links') && error.message.includes('schema cache')) return []
+    throw new Error(error.message)
+  }
+  return (data ?? []) as UploadLink[]
+}
+
+export async function createUploadLink(caseId: string, formData: FormData): Promise<ActionResult<{ url: string }>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+
+  const token = crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', '')
+  const days = Number(formData.get('days') ?? 14)
+  const expiresAt = new Date(Date.now() + Math.max(1, days) * 86400000).toISOString()
+  const label = String(formData.get('label') ?? '').trim() || '資料アップロード'
+
+  const { error } = await supabase.from('upload_links').insert({
+    user_id: user.id,
+    case_id: caseId,
+    token_hash: hashCouponCode(token),
+    label,
+    expires_at: expiresAt,
+    max_uploads: Number(formData.get('max_uploads') ?? '') || null,
+  })
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath(`/cases/${caseId}`)
+  return { success: true, data: { url: `/upload/${token}` } }
+}
+
+export async function getCaseReviews(caseId: string): Promise<CaseReview[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data, error } = await supabase.from('case_reviews').select('*').eq('case_id', caseId).eq('user_id', user.id).order('created_at', { ascending: false })
+  if (error) {
+    if (error.message.includes('case_reviews') && error.message.includes('schema cache')) return []
+    throw new Error(error.message)
+  }
+  return (data ?? []) as CaseReview[]
+}
+
+export async function createCaseReview(caseId: string): Promise<ActionResult<CaseReview>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+  const { data, error } = await supabase.from('case_reviews').insert({
+    user_id: user.id,
+    case_id: caseId,
+    checklist: REVIEW_ITEMS.map(label => ({ label, checked: false })),
+  }).select().single()
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/cases/${caseId}`)
+  return { success: true, data: data as CaseReview }
+}
+
+export async function updateCaseReview(reviewId: string, formData: FormData): Promise<ActionResult<CaseReview>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+  const checklist = REVIEW_ITEMS.map((label, index) => ({ label, checked: formData.get(`item_${index}`) === 'on' }))
+  const status = String(formData.get('status') ?? 'pending')
+  const { data, error } = await supabase.from('case_reviews').update({
+    checklist,
+    status,
+    note: String(formData.get('note') ?? '').trim() || null,
+    reviewed_by: status === 'pending' ? null : user.id,
+    reviewed_at: status === 'pending' ? null : new Date().toISOString(),
+  }).eq('id', reviewId).eq('user_id', user.id).select().single()
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/cases/${data.case_id}`)
+  return { success: true, data: data as CaseReview }
+}
+
+export async function getCaseCommunications(caseId: string): Promise<CaseCommunication[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data, error } = await supabase.from('case_communications').select('*').eq('case_id', caseId).eq('user_id', user.id).order('contacted_at', { ascending: false })
+  if (error) {
+    if (error.message.includes('case_communications') && error.message.includes('schema cache')) return []
+    throw new Error(error.message)
+  }
+  return (data ?? []) as CaseCommunication[]
+}
+
+export async function createCaseCommunication(caseId: string, customerId: string | null, formData: FormData): Promise<ActionResult<CaseCommunication>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+  const subject = String(formData.get('subject') ?? '').trim()
+  if (!subject) return { success: false, error: '件名を入力してください。' }
+  const { data, error } = await supabase.from('case_communications').insert({
+    user_id: user.id,
+    case_id: caseId,
+    customer_id: customerId,
+    channel: String(formData.get('channel') ?? 'phone'),
+    direction: String(formData.get('direction') ?? 'outbound'),
+    subject,
+    body: String(formData.get('body') ?? '').trim() || null,
+    contacted_at: String(formData.get('contacted_at') ?? '').trim() || new Date().toISOString(),
+  }).select().single()
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/cases/${caseId}`)
+  return { success: true, data: data as CaseCommunication }
+}
+
+export async function getAgencyRules(): Promise<AgencyRule[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data, error } = await supabase.from('agency_rules').select('*, agencies(id, name)').eq('user_id', user.id).order('created_at', { ascending: false })
+  if (error) {
+    if (error.message.includes('agency_rules') && error.message.includes('schema cache')) return []
+    throw new Error(error.message)
+  }
+  return (data ?? []) as AgencyRule[]
+}
+
+export async function createAgencyRule(formData: FormData): Promise<ActionResult<AgencyRule>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+  const title = String(formData.get('title') ?? '').trim()
+  const detail = String(formData.get('detail') ?? '').trim()
+  if (!title || !detail) return { success: false, error: 'ルール名と内容を入力してください。' }
+  const agencyId = String(formData.get('agency_id') ?? '').trim()
+  const checklist = String(formData.get('checklist') ?? '')
+    .split(/\r?\n/)
+    .map(label => label.trim())
+    .filter(Boolean)
+    .map(label => ({ label, required: true }))
+  const { data, error } = await supabase.from('agency_rules').insert({
+    user_id: user.id,
+    agency_id: agencyId || null,
+    business_type: String(formData.get('business_type') ?? '').trim() || null,
+    title,
+    detail,
+    checklist,
+    effective_from: String(formData.get('effective_from') ?? '').trim() || null,
+    source_url: String(formData.get('source_url') ?? '').trim() || null,
+  }).select().single()
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/agencies')
+  return { success: true, data: data as AgencyRule }
+}
+
+export async function getCaseEstimates(caseId: string): Promise<CaseEstimate[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data, error } = await supabase.from('case_estimates').select('*').eq('case_id', caseId).eq('user_id', user.id).order('created_at', { ascending: false })
+  if (error) {
+    if (error.message.includes('case_estimates') && error.message.includes('schema cache')) return []
+    throw new Error(error.message)
+  }
+  return (data ?? []) as CaseEstimate[]
+}
+
+export async function createCaseEstimate(caseId: string, formData: FormData): Promise<ActionResult<CaseEstimate>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+  const fee = Number(formData.get('fee_amount') ?? 0)
+  const expense = Number(formData.get('expense_amount') ?? 0)
+  const tax = Number(formData.get('tax_amount') ?? Math.floor(fee * 0.1))
+  const { data, error } = await supabase.from('case_estimates').insert({
+    user_id: user.id,
+    case_id: caseId,
+    title: String(formData.get('title') ?? '').trim() || '見積',
+    recipient_name: String(formData.get('recipient_name') ?? '').trim() || null,
+    issued_at: String(formData.get('issued_at') ?? '').trim() || new Date().toISOString().split('T')[0],
+    due_date: String(formData.get('due_date') ?? '').trim() || null,
+    fee_amount: fee,
+    expense_amount: expense,
+    tax_amount: tax,
+    memo: String(formData.get('memo') ?? '').trim() || null,
+  }).select().single()
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/cases/${caseId}`)
+  return { success: true, data: data as CaseEstimate }
+}
+
+export async function issueInvoiceFromEstimate(estimateId: string): Promise<ActionResult<{ document_id: string }>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+
+  const { data: estimate, error: estimateError } = await supabase
+    .from('case_estimates')
+    .select('*, cases(name, customers(company_name))')
+    .eq('id', estimateId)
+    .eq('user_id', user.id)
+    .single()
+  if (estimateError || !estimate) return { success: false, error: estimateError?.message ?? '見積が見つかりません。' }
+
+  const documentNumber = `INV-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${String(Date.now()).slice(-5)}`
+  const amount = Number(estimate.fee_amount ?? 0) + Number(estimate.expense_amount ?? 0)
+  const taxAmount = Number(estimate.tax_amount ?? 0)
+  const recipient = estimate.recipient_name || estimate.cases?.customers?.company_name || 'お客様'
+
+  const { data: document, error } = await supabase.from('billing_documents').insert({
+    user_id: user.id,
+    document_type: 'invoice',
+    document_number: documentNumber,
+    issue_date: new Date().toISOString().split('T')[0],
+    title: estimate.title || estimate.cases?.name || '案件請求',
+    recipient_name: recipient,
+    amount,
+    tax_amount: taxAmount,
+    status: 'draft',
+    memo: estimate.memo ?? null,
+  }).select('id').single()
+  if (error || !document) return { success: false, error: error?.message ?? '請求書を作成できませんでした。' }
+
+  await supabase.from('case_estimates').update({
+    status: 'invoiced',
+    invoice_document_id: document.id,
+  }).eq('id', estimateId).eq('user_id', user.id)
+
+  revalidatePath(`/cases/${estimate.case_id}`)
+  revalidatePath('/settings/account')
+  return { success: true, data: { document_id: document.id as string } }
+}
+
+export async function markEstimateAccepted(estimateId: string): Promise<ActionResult<CaseEstimate>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+  const { data, error } = await supabase.from('case_estimates').update({
+    status: 'accepted',
+    accepted_at: new Date().toISOString(),
+  }).eq('id', estimateId).eq('user_id', user.id).select().single()
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/cases/${data.case_id}`)
+  return { success: true, data: data as CaseEstimate }
+}
+
+export async function classifyCaseFile(fileId: string, category: string, documentCheckId?: string): Promise<ActionResult<CaseFile>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+  const { data, error } = await supabase.from('case_files').update({
+    category: category || null,
+    document_check_id: documentCheckId || null,
+  }).eq('id', fileId).eq('user_id', user.id).select().single()
+  if (error) return { success: false, error: error.message }
+  if (documentCheckId) {
+    await supabase.from('document_checks').update({ matched_file_id: fileId, obtained: true }).eq('id', documentCheckId).eq('user_id', user.id)
+  }
+  revalidatePath(`/cases/${data.case_id}`)
+  return { success: true, data: data as CaseFile }
+}
