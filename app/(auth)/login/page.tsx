@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -34,32 +35,47 @@ export default function LoginPage() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>ログイン</CardTitle>
-        <CardDescription>管理者が発行したアカウントでログインしてください</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">メールアドレス</Label>
-            <Input id="email" type="email" autoComplete="email" {...register('email')} />
-            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+    <div className="w-full max-w-md">
+      <div className="mb-6 flex justify-center">
+        <Image
+          src="/brand/legal-orbit-logo-horizontal-dark.png"
+          alt="Legal Orbit 行政書士"
+          width={420}
+          height={171}
+          className="h-auto w-full max-w-sm"
+          priority
+        />
+      </div>
+
+      <Card className="border-white/10 bg-white shadow-2xl">
+        <CardHeader className="space-y-4 p-8 pb-4">
+          <div>
+            <CardTitle>ログイン</CardTitle>
+            <CardDescription>管理者が発行したアカウントでログインしてください</CardDescription>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">パスワード</Label>
-            <Input id="password" type="password" autoComplete="current-password" {...register('password')} />
-            {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
-          </div>
-          {serverError && <p className="text-sm text-destructive">{serverError}</p>}
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? 'ログイン中...' : 'ログイン'}
-          </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            アカウントは管理者が発行します。登録済みの方のみ利用できます。
-          </p>
-        </form>
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent className="p-8 pt-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">メールアドレス</Label>
+              <Input id="email" type="email" autoComplete="email" className="bg-white" {...register('email')} />
+              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">パスワード</Label>
+              <Input id="password" type="password" autoComplete="current-password" className="bg-white" {...register('password')} />
+              {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+            </div>
+            {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'ログイン中...' : 'ログイン'}
+            </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              アカウントは管理者が発行します。登録済みの方のみ利用できます。
+            </p>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

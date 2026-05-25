@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, Briefcase, Building2, ClipboardList, FileStack, LayoutDashboard, ListChecks, ListTodo, LogOut, Settings, User, Users, X } from 'lucide-react'
@@ -40,7 +41,17 @@ export function Sidebar({ userEmail, isOpen, onClose }: SidebarProps) {
       )}
     >
       <div className="p-4 border-b relative">
-        <h1 className="text-sm font-bold text-foreground leading-tight">Legal Orbit 行政書士</h1>
+        <div className="flex items-center gap-3 pr-8">
+          <Image
+            src="/brand/icon-64.png"
+            alt="Legal Orbit 行政書士"
+            width={36}
+            height={36}
+            className="rounded-lg"
+            priority
+          />
+          <h1 className="text-sm font-bold text-foreground leading-tight">Legal Orbit 行政書士</h1>
+        </div>
         <p className="text-xs text-muted-foreground mt-1 truncate">{userEmail}</p>
         {onClose && (
           <button onClick={onClose} className="absolute top-3 right-3 p-1 rounded hover:bg-gray-100 lg:hidden" aria-label="サイドバーを閉じる">

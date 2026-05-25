@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
 import { Menu } from 'lucide-react'
 import { Sidebar } from './sidebar'
@@ -21,6 +22,7 @@ export function AppShell({ userEmail, children }: AppShellProps) {
           <button onClick={() => setSidebarOpen(true)} className="p-1 rounded hover:bg-gray-100" aria-label="メニューを開く">
             <Menu className="h-5 w-5" />
           </button>
+          <Image src="/brand/icon-64.png" alt="" width={28} height={28} className="rounded-md" />
           <span className="text-sm font-bold">Legal Orbit 行政書士</span>
         </header>
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
