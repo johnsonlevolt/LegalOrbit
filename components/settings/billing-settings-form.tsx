@@ -65,6 +65,21 @@ export function BillingSettingsForm({
     })
   }
 
+  function yearlySavings(planName: PlanName) {
+    const plan = plans[planName]
+    const monthlyTotal = plan.monthlyPrice * 12
+    const savedAmount = monthlyTotal - plan.yearlyPrice
+    const savedPercent = Math.round((savedAmount / monthlyTotal) * 100)
+
+    return {
+      monthlyTotal,
+      savedAmount,
+      savedPercent,
+      paidMonths: Math.round(plan.yearlyPrice / plan.monthlyPrice),
+      freeMonths: Math.round(savedAmount / plan.monthlyPrice),
+    }
+  }
+
   return (
     <div className="space-y-5">
       <section className="rounded-lg border bg-white p-5">
@@ -111,9 +126,35 @@ export function BillingSettingsForm({
               onClick={() => setCycle('yearly')}
             >
               年額
+              <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                1か月分お得
+              </span>
             </button>
           </div>
         </div>
+
+        {cycle === 'yearly' && (
+          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">年間契約は12か月使えて、支払いは11か月分です。</p>
+              <p className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-700 shadow-sm">
+                実質約8%OFF
+              </p>
+            </div>
+            <div className="mt-3 grid grid-cols-12 overflow-hidden rounded-full bg-white">
+              {Array.from({ length: 12 }).map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-2 border-r border-emerald-50 last:border-r-0 ${index < 11 ? 'bg-emerald-500' : 'bg-emerald-100'}`}
+                />
+              ))}
+            </div>
+            <div className="mt-2 flex justify-between text-xs text-emerald-800">
+              <span>11か月分を支払い</span>
+              <span>1か月分無料相当</span>
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 max-w-xl space-y-1">
           <Label htmlFor="coupon_code">クーポンコード</Label>
@@ -135,6 +176,7 @@ export function BillingSettingsForm({
         <div className="mt-5 grid items-stretch gap-4 md:grid-cols-3">
           {paidPlans.map(planName => {
             const plan = plans[planName]
+            const savings = yearlySavings(planName)
             const yearlyTotal = plan.yearlyPrice
             const displayPrice = cycle === 'yearly' ? Math.round(plan.yearlyPrice / 12) : plan.monthlyPrice
             return (
@@ -153,7 +195,36 @@ export function BillingSettingsForm({
                   {cycle === 'yearly' ? '実質月額です。' : '月ごとの契約です。'}
                 </p>
                 {cycle === 'yearly' && (
-                  <p className="mt-1 text-xs text-muted-foreground">年間総額 {formatYen(yearlyTotal)}</p>
+                  <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium text-emerald-950">年間でお得</span>
+                      <span className="rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
+                        {formatYen(savings.savedAmount)}節約
+                      </span>
+                    </div>
+                    <div className="mt-3 space-y-1.5 text-xs text-emerald-900">
+                      <div className="flex justify-between">
+                        <span>月額12か月の場合</span>
+                        <span className="line-through opacity-70">{formatYen(savings.monthlyTotal)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold">
+                        <span>年間契約</span>
+                        <span>{formatYen(yearlyTotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>無料相当</span>
+                        <span>{savings.freeMonths}か月分 / 約{savings.savedPercent}%OFF</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-12 overflow-hidden rounded-full bg-white">
+                      {Array.from({ length: 12 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className={`h-1.5 border-r border-emerald-50 last:border-r-0 ${index < savings.paidMonths ? 'bg-emerald-500' : 'bg-emerald-100'}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 )}
                 <ul className="mt-5 space-y-2 text-sm">
                   {plan.features.map(feature => (
