@@ -262,7 +262,9 @@ export interface CaseTask {
   completed_at: string | null
   created_at: string
   updated_at: string
-  cases?: Pick<Case, 'id' | 'name' | 'planned_submission_date'>
+  cases?: Pick<Case, 'id' | 'name' | 'planned_submission_date' | 'assignee'> & {
+    customers?: Pick<Customer, 'company_name'> | null
+  }
 }
 
 export type CaseCorrectionStatus = 'open' | 'working' | 'done'
@@ -387,6 +389,9 @@ export interface CaseEstimate {
   accepted_at: string | null
   memo: string | null
   created_at: string
+  cases?: Pick<Case, 'id' | 'name'> & {
+    customers?: Pick<Customer, 'company_name'> | null
+  }
 }
 
 export interface EstimateLineItem {
@@ -467,9 +472,11 @@ export interface BillingProfile {
   billing_cycle: 'monthly' | 'yearly'
   billing_name: string | null
   billing_email: string | null
+  phone: string | null
   postal_code: string | null
   address: string | null
   tax_id: string | null
+  bank_accounts: BankAccount[]
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
   current_period_start: string | null
@@ -481,10 +488,29 @@ export interface BillingProfile {
   updated_at: string
 }
 
+export interface BankAccount {
+  id: string
+  label: string
+  bank_name: string
+  branch_name: string
+  account_type: string
+  account_number: string
+  account_holder: string
+}
+
+export interface BillingIssuerSnapshot {
+  billing_name?: string | null
+  billing_email?: string | null
+  phone?: string | null
+  postal_code?: string | null
+  address?: string | null
+  tax_id?: string | null
+}
+
 export interface BillingDocument {
   id: string
   user_id: string
-  document_type: 'invoice' | 'receipt'
+  document_type: 'invoice' | 'receipt' | 'estimate'
   document_number: string
   issue_date: string
   title: string
@@ -494,6 +520,9 @@ export interface BillingDocument {
   line_items: EstimateLineItem[]
   tax_inclusion: 'exclusive' | 'inclusive'
   tax_summary: TaxSummaryLine[]
+  issuer_snapshot: BillingIssuerSnapshot
+  bank_accounts: BankAccount[]
+  payment_due_date: string | null
   status: string
   memo: string | null
   stripe_invoice_id: string | null

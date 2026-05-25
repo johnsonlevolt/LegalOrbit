@@ -24,11 +24,12 @@ const navItems = [
 
 interface SidebarProps {
   userEmail: string
+  companyName?: string | null
   isOpen?: boolean
   onClose?: () => void
 }
 
-export function Sidebar({ userEmail, isOpen, onClose }: SidebarProps) {
+export function Sidebar({ userEmail, companyName, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
 
   return (
@@ -52,7 +53,7 @@ export function Sidebar({ userEmail, isOpen, onClose }: SidebarProps) {
           />
           <h1 className="text-sm font-bold text-foreground leading-tight">Legal Orbit 行政書士</h1>
         </div>
-        <p className="text-xs text-muted-foreground mt-1 truncate">{userEmail}</p>
+        <p className="text-xs text-muted-foreground mt-1 truncate">{companyName || userEmail}</p>
         {onClose && (
           <button onClick={onClose} className="absolute top-3 right-3 p-1 rounded hover:bg-gray-100 lg:hidden" aria-label="サイドバーを閉じる">
             <X className="h-4 w-4" />

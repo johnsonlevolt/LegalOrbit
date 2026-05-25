@@ -7,16 +7,17 @@ import { Sidebar } from './sidebar'
 
 interface AppShellProps {
   userEmail: string
+  companyName?: string | null
   children: React.ReactNode
 }
 
-export function AppShell({ userEmail, children }: AppShellProps) {
+export function AppShell({ userEmail, companyName, children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      <Sidebar userEmail={userEmail} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar userEmail={userEmail} companyName={companyName} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex flex-col flex-1 overflow-hidden">
         <header className="lg:hidden flex items-center gap-3 bg-white border-b px-4 py-3">
           <button onClick={() => setSidebarOpen(true)} className="p-1 rounded hover:bg-gray-100" aria-label="メニューを開く">

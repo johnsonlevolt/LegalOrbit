@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getCaseEstimates } from '@/lib/actions/practical-extensions'
 import { getCase } from '@/lib/actions/cases'
+import { getBillingProfile } from '@/lib/actions/billing'
 import { formatYen } from '@/lib/billing/plans'
 import type { CaseEstimate, EstimateLineItem, TaxSummaryLine } from '@/types/database'
 
@@ -10,9 +11,10 @@ interface Props {
 
 export default async function EstimatePrintPage(props: Props) {
   const params = await props.params
-  const [caseData, estimates] = await Promise.all([
+  const [caseData, estimates, profile] = await Promise.all([
     getCase(params.id),
     getCaseEstimates(params.id),
+    getBillingProfile(),
   ])
   const estimate = estimates.find(item => item.id === params.estimateId)
   if (!caseData || !estimate) notFound()
@@ -35,7 +37,12 @@ export default async function EstimatePrintPage(props: Props) {
             {estimate.due_date && <p className="text-sm">有効期限: {new Date(estimate.due_date).toLocaleDateString('ja-JP')}</p>}
           </div>
           <div className="text-right text-sm leading-6">
-            <p className="font-semibold">Legal Orbit 行政書士</p>
+            <p className="font-semibold">{profile?.billing_name ?? 'Legal Orbit 行政書士'}</p>
+            {profile?.tax_id && <p>登録番号: {profile.tax_id}</p>}
+            {profile?.postal_code && <p>〒{profile.postal_code}</p>}
+            {profile?.address && <p>{profile.address}</p>}
+            {profile?.phone && <p>TEL: {profile.phone}</p>}
+            {profile?.billing_email && <p>{profile.billing_email}</p>}
             <p>税計算: {estimate.tax_inclusion === 'inclusive' ? '内税' : '外税'}</p>
           </div>
         </div>

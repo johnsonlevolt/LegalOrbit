@@ -16,6 +16,7 @@ export default async function BillingDocumentPrintPage(props: Props) {
   if (!document) notFound()
 
   const typeLabel = document.document_type === 'invoice' ? '請求書' : '領収書'
+  const issuer = { ...profile, ...(document.issuer_snapshot ?? {}) }
   const lineItems = getBillingLineItems(document)
   const taxSummary = getTaxSummary(document, lineItems)
   const subtotal = lineItems.reduce((sum, item) => sum + item.net_amount, 0)
@@ -33,9 +34,12 @@ export default async function BillingDocumentPrintPage(props: Props) {
             <p className="text-sm">番号: {document.document_number}</p>
           </div>
           <div className="text-right text-sm leading-6">
-            <p className="font-semibold">Legal Orbit 行政書士</p>
-            {profile?.tax_id && <p>登録番号: {profile.tax_id}</p>}
-            {profile?.billing_email && <p>{profile.billing_email}</p>}
+            <p className="font-semibold">{issuer.billing_name ?? 'Legal Orbit 行政書士'}</p>
+            {issuer.tax_id && <p>登録番号: {issuer.tax_id}</p>}
+            {issuer.postal_code && <p>〒{issuer.postal_code}</p>}
+            {issuer.address && <p>{issuer.address}</p>}
+            {issuer.phone && <p>TEL: {issuer.phone}</p>}
+            {issuer.billing_email && <p>{issuer.billing_email}</p>}
             <p>税計算: {document.tax_inclusion === 'inclusive' ? '内税' : '外税'}</p>
           </div>
         </div>
@@ -52,6 +56,9 @@ export default async function BillingDocumentPrintPage(props: Props) {
         <div className="mt-8 rounded-md border border-gray-300 bg-gray-50 p-5">
           <p className="text-sm text-gray-600">税込金額</p>
           <p className="mt-1 text-3xl font-bold">{formatYen(total)}</p>
+          {document.payment_due_date && (
+            <p className="mt-2 text-sm text-gray-700">振込期日: {new Date(document.payment_due_date).toLocaleDateString('ja-JP')}</p>
+          )}
         </div>
 
         <table className="mt-8 w-full border-collapse text-sm">
@@ -113,6 +120,20 @@ export default async function BillingDocumentPrintPage(props: Props) {
         {document.memo && (
           <div className="mt-8 whitespace-pre-wrap rounded-md border p-4 text-sm">
             {document.memo}
+          </div>
+        )}
+        {document.document_type === 'invoice' && (document.bank_accounts ?? []).length > 0 && (
+          <div className="mt-8 rounded-md border p-4 text-sm">
+            <p className="font-semibold">振込先</p>
+            <div className="mt-3 space-y-2">
+              {(document.bank_accounts ?? []).map(account => (
+                <div key={account.id}>
+                  <p className="font-medium">{account.label || account.bank_name}</p>
+                  <p>{account.bank_name} {account.branch_name} / {account.account_type} {account.account_number}</p>
+                  <p>口座名義: {account.account_holder}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </section>

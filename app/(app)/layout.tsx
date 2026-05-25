@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AppShell } from '@/components/layout/app-shell'
+import { getBillingProfile } from '@/lib/actions/billing'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -8,8 +9,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!user) redirect('/login')
 
+  const profile = await getBillingProfile()
+
   return (
-    <AppShell userEmail={user.email ?? ''}>
+    <AppShell userEmail={user.email ?? ''} companyName={profile?.billing_name ?? null}>
       {children}
     </AppShell>
   )

@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { ActionResult, BillingDocument, BillingProfile } from '@/types/database'
+import type { ActionResult, BankAccount, BillingDocument, BillingProfile } from '@/types/database'
 import { getAppUrl, getStripe } from '@/lib/stripe/server'
 import { canUpgrade, getStripePriceEnvKey, type BillingCycle, type PlanName } from '@/lib/billing/plans'
 import { couponHint, hashCouponCode, normalizeCouponCode } from '@/lib/security/hash'
@@ -274,6 +274,27 @@ export async function getBillingDocuments(): Promise<BillingDocument[]> {
   return (data ?? []) as BillingDocument[]
 }
 
+export async function markBillingDocumentPaid(id: string, paid: boolean): Promise<ActionResult<BillingDocument>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+
+  const { data, error } = await supabase
+    .from('billing_documents')
+    .update({
+      status: paid ? 'paid' : 'draft',
+      paid_at: paid ? new Date().toISOString() : null,
+    })
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single()
+  if (isMissingBillingTable(error)) return { success: false, error: '請求管理テーブルが未作成です。' }
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/settings/account')
+  return { success: true, data: data as BillingDocument }
+}
+
 export async function getBillingDocument(id: string): Promise<BillingDocument | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -454,13 +475,16 @@ export async function saveBillingProfile(formData: FormData): Promise<ActionResu
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: '未認証です。' }
 
+  const bankAccounts = parseBankAccounts(String(formData.get('bank_accounts') ?? '[]'))
   const payload = {
     user_id: user.id,
     billing_name: String(formData.get('billing_name') ?? '').trim() || null,
     billing_email: String(formData.get('billing_email') ?? '').trim() || null,
+    phone: String(formData.get('phone') ?? '').trim() || null,
     postal_code: String(formData.get('postal_code') ?? '').trim() || null,
     address: String(formData.get('address') ?? '').trim() || null,
     tax_id: String(formData.get('tax_id') ?? '').trim() || null,
+    bank_accounts: bankAccounts,
   }
 
   const { data, error } = await supabase.from('billing_profiles').upsert(payload, { onConflict: 'user_id' }).select().single()
@@ -468,4 +492,34 @@ export async function saveBillingProfile(formData: FormData): Promise<ActionResu
   if (error) return { success: false, error: error.message }
   revalidatePath('/settings/account')
   return { success: true, data: data as BillingProfile }
+}
+
+function parseBankAccounts(raw: string): BankAccount[] {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    parsed = []
+  }
+  if (!Array.isArray(parsed)) return []
+  return parsed
+    .map(row => {
+      if (!row || typeof row !== 'object') return null
+      const record = row as Record<string, unknown>
+      const bankName = String(record.bank_name ?? '').trim()
+      const branchName = String(record.branch_name ?? '').trim()
+      const accountNumber = String(record.account_number ?? '').trim()
+      const accountHolder = String(record.account_holder ?? '').trim()
+      if (!bankName && !branchName && !accountNumber && !accountHolder) return null
+      return {
+        id: String(record.id ?? '').trim() || crypto.randomUUID(),
+        label: String(record.label ?? '').trim() || bankName || '振込口座',
+        bank_name: bankName,
+        branch_name: branchName,
+        account_type: String(record.account_type ?? '普通').trim() || '普通',
+        account_number: accountNumber,
+        account_holder: accountHolder,
+      } satisfies BankAccount
+    })
+    .filter((row): row is BankAccount => Boolean(row))
 }

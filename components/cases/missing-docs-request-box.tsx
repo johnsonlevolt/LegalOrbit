@@ -74,6 +74,7 @@ function buildMessage(caseData: Case, docs: DocumentCheck[], includeAssignee: bo
     '',
     'いつもお世話になっております。',
     `${caseData.name}の手続きに必要な資料について、下記のご準備をお願いいたします。`,
+    assignee ? `担当: ${assignee}` : '',
     '',
     ...docs.map((doc, index) => `${index + 1}. ${doc.document_name}${doc.deficiency_note ? `（${doc.deficiency_note}）` : ''}`),
     '',
@@ -81,5 +82,5 @@ function buildMessage(caseData: Case, docs: DocumentCheck[], includeAssignee: bo
     '原本が必要な資料については、別途ご案内いたします。',
     '',
     'ご不明点がありましたらお知らせください。',
-  ].join('\n')
+  ].filter(Boolean).join('\n')
 }

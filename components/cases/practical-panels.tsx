@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
-import type { CaseCommunication, CaseEstimate, CaseFile, CaseReview, DocumentCheck, EstimateLineItem, TaxSummaryLine, UploadLink } from '@/types/database'
+import type { BankAccount, BillingProfile, CaseCommunication, CaseEstimate, CaseFile, CaseReview, DocumentCheck, EstimateLineItem, TaxSummaryLine, UploadLink } from '@/types/database'
 import {
   classifyCaseFile,
   createCaseCommunication,
@@ -32,6 +32,7 @@ export function PracticalPanels({
   reviews,
   communications,
   estimates,
+  billingProfile,
 }: {
   caseId: string
   customerId: string | null
@@ -42,10 +43,11 @@ export function PracticalPanels({
   reviews: CaseReview[]
   communications: CaseCommunication[]
   estimates: CaseEstimate[]
+  billingProfile?: BillingProfile | null
 }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      <EstimatePanel caseId={caseId} customerName={customerName} estimates={estimates} />
+      <EstimatePanel caseId={caseId} customerName={customerName} estimates={estimates} billingProfile={billingProfile} />
       <UploadLinkPanel caseId={caseId} links={uploadLinks} />
       <FileClassificationPanel files={files} documentChecks={documentChecks} />
       <ReviewPanel caseId={caseId} reviews={reviews} />
@@ -231,10 +233,22 @@ type EstimateInputLine = {
   tax_rate: number
 }
 
-function EstimatePanel({ caseId, customerName, estimates }: { caseId: string; customerName?: string | null; estimates: CaseEstimate[] }) {
+function EstimatePanel({
+  caseId,
+  customerName,
+  estimates,
+  billingProfile,
+}: {
+  caseId: string
+  customerName?: string | null
+  estimates: CaseEstimate[]
+  billingProfile?: BillingProfile | null
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [taxInclusion, setTaxInclusion] = useState<'exclusive' | 'inclusive'>('exclusive')
+  const [selectedBankIds, setSelectedBankIds] = useState<string[]>((billingProfile?.bank_accounts ?? []).map(account => account.id))
+  const [paymentDueDate, setPaymentDueDate] = useState('')
   const [lines, setLines] = useState<EstimateInputLine[]>([
     { description: '申請手続報酬', category: 'fee', quantity: 1, unit_price: 0, tax_rate: 10 },
     { description: '証紙・行政手数料等', category: 'expense', quantity: 1, unit_price: 0, tax_rate: 0 },
@@ -274,9 +288,19 @@ function EstimatePanel({ caseId, customerName, estimates }: { caseId: string; cu
       else router.refresh()
     })
   }
+  function toggleBankAccount(account: BankAccount, checked: boolean) {
+    setSelectedBankIds(current => checked
+      ? Array.from(new Set([...current, account.id]))
+      : current.filter(id => id !== account.id)
+    )
+  }
+
   function invoice(id: string) {
+    const formData = new FormData()
+    formData.set('bank_account_ids', JSON.stringify(selectedBankIds))
+    formData.set('payment_due_date', paymentDueDate)
     startTransition(async () => {
-      const result = await issueInvoiceFromEstimate(id)
+      const result = await issueInvoiceFromEstimate(id, formData)
       if (!result.success) {
         toast({ title: '請求書を作成できませんでした', description: result.error, variant: 'destructive' })
         return
@@ -413,6 +437,35 @@ function EstimatePanel({ caseId, customerName, estimates }: { caseId: string; cu
         {estimates.length === 0 && (
           <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
             見積はまだありません。
+          </div>
+        )}
+
+        {estimates.length > 0 && (
+          <div className="rounded-md border bg-white p-3 text-sm">
+            <p className="font-medium">請求書発行設定</p>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-xs text-muted-foreground">振込期日</span>
+                <Input type="date" className="bg-white" value={paymentDueDate} onChange={event => setPaymentDueDate(event.target.value)} />
+              </label>
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">表示する振込口座</span>
+                <div className="space-y-1 rounded-md border bg-slate-50 p-2">
+                  {(billingProfile?.bank_accounts ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">設定の会社情報で振込口座を登録してください。</p>
+                  ) : (billingProfile?.bank_accounts ?? []).map(account => (
+                    <label key={account.id} className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={selectedBankIds.includes(account.id)}
+                        onChange={event => toggleBankAccount(account, event.target.checked)}
+                      />
+                      <span>{account.label || account.bank_name} / {account.bank_name} {account.branch_name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

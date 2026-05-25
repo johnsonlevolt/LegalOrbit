@@ -3,8 +3,10 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { hashCouponCode } from '@/lib/security/hash'
+import { getBillingProfile } from '@/lib/actions/billing'
 import type {
   ActionResult,
+  BankAccount,
   AgencyRule,
   CaseCommunication,
   CaseEstimate,
@@ -219,7 +221,7 @@ export async function createCaseEstimate(caseId: string, formData: FormData): Pr
   return { success: true, data: data as CaseEstimate }
 }
 
-export async function issueInvoiceFromEstimate(estimateId: string): Promise<ActionResult<{ document_id: string }>> {
+export async function issueInvoiceFromEstimate(estimateId: string, formData?: FormData): Promise<ActionResult<{ document_id: string }>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: '未認証です。' }
@@ -238,6 +240,18 @@ export async function issueInvoiceFromEstimate(estimateId: string): Promise<Acti
   const recipient = estimate.recipient_name || estimate.cases?.customers?.company_name || 'お客様'
   const lineItems = Array.isArray(estimate.line_items) ? estimate.line_items : []
   const taxSummary = Array.isArray(estimate.tax_summary) ? estimate.tax_summary : []
+  const profile = await getBillingProfile()
+  const selectedBankIds = parseSelectedBankIds(String(formData?.get('bank_account_ids') ?? '[]'))
+  const bankAccounts = selectBankAccounts(profile?.bank_accounts ?? [], selectedBankIds)
+  const paymentDueDate = String(formData?.get('payment_due_date') ?? '').trim() || null
+  const issuerSnapshot = {
+    billing_name: profile?.billing_name ?? null,
+    billing_email: profile?.billing_email ?? null,
+    phone: profile?.phone ?? null,
+    postal_code: profile?.postal_code ?? null,
+    address: profile?.address ?? null,
+    tax_id: profile?.tax_id ?? null,
+  }
 
   const { data: document, error } = await supabase.from('billing_documents').insert({
     user_id: user.id,
@@ -251,6 +265,9 @@ export async function issueInvoiceFromEstimate(estimateId: string): Promise<Acti
     line_items: lineItems,
     tax_inclusion: estimate.tax_inclusion ?? 'exclusive',
     tax_summary: taxSummary,
+    issuer_snapshot: issuerSnapshot,
+    bank_accounts: bankAccounts,
+    payment_due_date: paymentDueDate,
     status: 'draft',
     memo: estimate.memo ?? null,
   }).select('id').single()
@@ -277,6 +294,39 @@ export async function markEstimateAccepted(estimateId: string): Promise<ActionRe
   if (error) return { success: false, error: error.message }
   revalidatePath(`/cases/${data.case_id}`)
   return { success: true, data: data as CaseEstimate }
+}
+
+export async function getAllCaseEstimates(): Promise<CaseEstimate[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data, error } = await supabase
+    .from('case_estimates')
+    .select('*, cases(id, name, customers(company_name))')
+    .eq('user_id', user.id)
+    .order('issued_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(100)
+  if (error) {
+    if (error.message.includes('case_estimates') && error.message.includes('schema cache')) return []
+    throw new Error(error.message)
+  }
+  return (data ?? []) as CaseEstimate[]
+}
+
+function parseSelectedBankIds(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : []
+  } catch {
+    return []
+  }
+}
+
+function selectBankAccounts(accounts: BankAccount[], ids: string[]): BankAccount[] {
+  if (ids.length === 0) return []
+  const idSet = new Set(ids)
+  return accounts.filter(account => idSet.has(account.id))
 }
 
 function parseEstimateItems(raw: string, taxInclusion: 'exclusive' | 'inclusive'): EstimateLineItem[] {

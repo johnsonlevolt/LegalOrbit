@@ -14,6 +14,7 @@ import { getCaseTasks } from '@/lib/actions/case-tasks'
 import { getPdfFormOutputs, getPdfFormTemplates } from '@/lib/actions/pdf-forms'
 import { getCaseCorrections } from '@/lib/actions/corrections'
 import { getCaseDeadlines } from '@/lib/actions/deadlines'
+import { getBillingProfile } from '@/lib/actions/billing'
 import { CaseDetailTabs } from '@/components/cases/case-detail-tabs'
 import { CaseNextActions } from '@/components/cases/case-next-actions'
 import { CaseTaskPanel } from '@/components/cases/case-task-panel'
@@ -76,6 +77,7 @@ export default async function CaseDetailPage(props: Props) {
     reviews,
     communications,
     estimates,
+    billingProfile,
   ] = await Promise.all([
     getVehicles(params.id),
     getOffices(params.id),
@@ -94,18 +96,22 @@ export default async function CaseDetailPage(props: Props) {
     getCaseReviews(params.id),
     getCaseCommunications(params.id),
     getCaseEstimates(params.id),
+    getBillingProfile(),
   ])
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="sticky top-0 z-30 -mx-4 flex items-center justify-between border-b bg-gray-50/95 px-4 py-3 backdrop-blur lg:-mx-6 lg:px-6">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">{caseData.name}</h1>
           <Badge variant={statusVariant(caseData.status)}>{caseData.status}</Badge>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Button asChild variant="outline" size="sm">
-            <Link href={`/cases/${params.id}/edit`}>編集</Link>
+            <Link href={`/customers/${caseData.customer_id}/edit`}>顧客情報編集</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/cases/${params.id}/edit`}>案件詳細編集</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
             <Link href={`/cases/${params.id}/print`}>
@@ -150,6 +156,7 @@ export default async function CaseDetailPage(props: Props) {
         reviews={reviews}
         communications={communications}
         estimates={estimates}
+        billingProfile={billingProfile}
       />
       {pdfTemplates.length > 0 && (
         <div className="rounded-lg border bg-white p-3">

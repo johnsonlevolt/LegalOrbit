@@ -11,7 +11,7 @@ export async function getCaseTasks(caseId?: string): Promise<CaseTask[]> {
 
   let query = supabase
     .from('case_tasks')
-    .select('*, cases(id, name, planned_submission_date)')
+    .select('*, cases(id, name, planned_submission_date, assignee, customers(company_name))')
     .eq('user_id', user.id)
     .order('status', { ascending: true })
     .order('due_date', { ascending: true, nullsFirst: false })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Circle, Trash2 } from 'lucide-react'
@@ -14,6 +14,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 export function CaseTaskPanel({ caseId, tasks, showCaseLink = false }: { caseId?: string; tasks: CaseTask[]; showCaseLink?: boolean }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [assigneeFilter, setAssigneeFilter] = useState('all')
+  const [caseFilter, setCaseFilter] = useState('all')
+
+  const assignees = useMemo(
+    () => Array.from(new Set(tasks.map(task => task.cases?.assignee).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'ja')),
+    [tasks],
+  )
+  const cases = useMemo(
+    () => Array.from(new Map(tasks.map(task => [task.case_id, task.cases])).values()).filter(Boolean),
+    [tasks],
+  )
+  const visibleTasks = tasks.filter(task => {
+    if (assigneeFilter !== 'all' && task.cases?.assignee !== assigneeFilter) return false
+    if (caseFilter !== 'all' && task.case_id !== caseFilter) return false
+    return true
+  })
 
   function addTask(formData: FormData) {
     if (!caseId) return
@@ -63,11 +79,24 @@ export function CaseTaskPanel({ caseId, tasks, showCaseLink = false }: { caseId?
           </form>
         )}
 
-        {tasks.length === 0 ? (
+        {showCaseLink && tasks.length > 0 && (
+          <div className="grid gap-2 md:grid-cols-2">
+            <select value={assigneeFilter} onChange={event => setAssigneeFilter(event.target.value)} className="h-10 rounded-md border border-input bg-white px-3 py-2 text-sm">
+              <option value="all">すべての担当者</option>
+              {assignees.map(assignee => <option key={assignee} value={assignee}>{assignee}</option>)}
+            </select>
+            <select value={caseFilter} onChange={event => setCaseFilter(event.target.value)} className="h-10 rounded-md border border-input bg-white px-3 py-2 text-sm">
+              <option value="all">すべての案件</option>
+              {cases.map(item => item && <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {visibleTasks.length === 0 ? (
           <p className="text-sm text-muted-foreground">タスクはありません。</p>
         ) : (
           <div className="space-y-2">
-            {tasks.map(task => (
+            {visibleTasks.map(task => (
               <div key={task.id} className="flex items-center gap-3 rounded-md border p-3">
                 <button onClick={() => toggleTask(task)} disabled={isPending} className="shrink-0">
                   {task.status === 'done' ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
@@ -76,6 +105,8 @@ export function CaseTaskPanel({ caseId, tasks, showCaseLink = false }: { caseId?
                   <p className={`text-sm font-medium ${task.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>{task.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {task.due_date ? `期限: ${task.due_date}` : '期限なし'} / 優先度: {priorityLabel(task.priority)}
+                    {task.cases?.assignee ? ` / 担当: ${task.cases.assignee}` : ''}
+                    {task.cases?.customers?.company_name ? ` / ${task.cases.customers.company_name}` : ''}
                     {showCaseLink && task.cases && (
                       <>
                         {' / '}

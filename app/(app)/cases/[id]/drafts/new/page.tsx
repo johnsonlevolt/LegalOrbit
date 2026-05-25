@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getCase } from '@/lib/actions/cases'
 import { getDocumentTemplates } from '@/lib/actions/document-templates'
+import { ensureDefaultTemplates } from '@/lib/actions/seed-templates'
 import { DocumentDraftCreateForm } from '@/components/forms/document-draft-create-form'
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 
 export default async function NewDocumentDraftPage(props: Props) {
   const [params, searchParams] = await Promise.all([props.params, props.searchParams])
+  await ensureDefaultTemplates()
   const [caseData, templates] = await Promise.all([
     getCase(params.id),
     getDocumentTemplates(),

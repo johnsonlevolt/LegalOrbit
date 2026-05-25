@@ -85,7 +85,7 @@ export function CaseForm({ caseData, customers, assignees = [], templates = [] }
           assignee: caseData.assignee ?? '',
           memo: caseData.memo ?? '',
         }
-      : { status: CASE_STATUSES[0] },
+      : { status: CASE_STATUSES[0], accepted_date: new Date().toISOString().split('T')[0] },
   })
 
   const templateCategories = useMemo(() => {
