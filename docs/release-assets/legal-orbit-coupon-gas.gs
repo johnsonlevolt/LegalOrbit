@@ -166,6 +166,46 @@ function dateText_(value) {
   return String(value).trim() || null;
 }
 
+function setupCouponActivationTypeDropdown() {
+  const spreadsheet = openSpreadsheet_();
+  const sheet = spreadsheet.getSheetByName(COUPON_SHEET_NAME);
+  if (!sheet) throw new Error(`シート「${COUPON_SHEET_NAME}」が見つかりません。`);
+
+  const values = sheet.getDataRange().getValues();
+  let headerRow = -1;
+  let activationColumn = -1;
+
+  values.some((row, rowIndex) => {
+    const columnIndex = row.findIndex(value => {
+      const text = String(value || '').trim();
+      return text === '有効化方法' || text === 'activation_type';
+    });
+
+    if (columnIndex >= 0) {
+      headerRow = rowIndex + 1;
+      activationColumn = columnIndex + 1;
+      return true;
+    }
+
+    return false;
+  });
+
+  if (headerRow < 1 || activationColumn < 1) {
+    throw new Error('有効化方法列が見つかりません。');
+  }
+
+  const targetRows = Math.max(sheet.getMaxRows() - headerRow, 1);
+  const targetRange = sheet.getRange(headerRow + 1, activationColumn, targetRows, 1);
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['immediate', 'checkout_only'], true)
+    .setAllowInvalid(false)
+    .setHelpText('immediate=課金登録なしで有効化、checkout_only=決済時のみ有効')
+    .build();
+
+  targetRange.setDataValidation(rule);
+  spreadsheet.toast('有効化方法のプルダウンを設定しました。', 'Legal Orbit');
+}
+
 function json_(body) {
   const output = ContentService.createTextOutput(JSON.stringify(body));
   output.setMimeType(ContentService.MimeType.JSON);
