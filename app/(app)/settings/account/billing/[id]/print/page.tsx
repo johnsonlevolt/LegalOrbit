@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getBillingDocument, getBillingProfile } from '@/lib/actions/billing'
+import { formatYen } from '@/lib/billing/plans'
+import type { BillingDocument, EstimateLineItem, TaxSummaryLine } from '@/types/database'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -14,22 +16,27 @@ export default async function BillingDocumentPrintPage(props: Props) {
   if (!document) notFound()
 
   const typeLabel = document.document_type === 'invoice' ? '請求書' : '領収書'
-  const total = document.amount + document.tax_amount
+  const lineItems = getBillingLineItems(document)
+  const taxSummary = getTaxSummary(document, lineItems)
+  const subtotal = lineItems.reduce((sum, item) => sum + item.net_amount, 0)
+  const taxTotal = lineItems.reduce((sum, item) => sum + item.tax_amount, 0)
+  const total = lineItems.reduce((sum, item) => sum + item.total_amount, 0)
 
   return (
-    <main className="mx-auto max-w-3xl bg-white p-10 text-gray-950 print:p-0">
+    <main className="mx-auto max-w-4xl bg-white p-10 text-gray-950 print:p-0">
       <p className="mb-6 text-right text-sm text-gray-600 print:hidden">ブラウザの印刷機能でPDF保存できます。</p>
       <section className="border border-gray-300 p-10">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-8">
           <div>
             <h1 className="text-3xl font-bold tracking-widest">{typeLabel}</h1>
             <p className="mt-2 text-sm">発行日: {new Date(document.issue_date).toLocaleDateString('ja-JP')}</p>
             <p className="text-sm">番号: {document.document_number}</p>
           </div>
-          <div className="text-right text-sm">
+          <div className="text-right text-sm leading-6">
             <p className="font-semibold">Legal Orbit 行政書士</p>
             {profile?.tax_id && <p>登録番号: {profile.tax_id}</p>}
             {profile?.billing_email && <p>{profile.billing_email}</p>}
+            <p>税計算: {document.tax_inclusion === 'inclusive' ? '内税' : '外税'}</p>
           </div>
         </div>
 
@@ -44,25 +51,62 @@ export default async function BillingDocumentPrintPage(props: Props) {
 
         <div className="mt-8 rounded-md border border-gray-300 bg-gray-50 p-5">
           <p className="text-sm text-gray-600">税込金額</p>
-          <p className="mt-1 text-3xl font-bold">{total.toLocaleString('ja-JP')}円</p>
+          <p className="mt-1 text-3xl font-bold">{formatYen(total)}</p>
         </div>
 
         <table className="mt-8 w-full border-collapse text-sm">
           <thead>
             <tr className="bg-gray-100">
               <th className="border px-3 py-2 text-left">内容</th>
-              <th className="border px-3 py-2 text-right">税抜</th>
+              <th className="border px-3 py-2 text-center">区分</th>
+              <th className="border px-3 py-2 text-right">数量</th>
+              <th className="border px-3 py-2 text-right">単価</th>
+              <th className="border px-3 py-2 text-right">税率</th>
+              <th className="border px-3 py-2 text-right">税抜金額</th>
               <th className="border px-3 py-2 text-right">消費税</th>
-              <th className="border px-3 py-2 text-right">税込</th>
+              <th className="border px-3 py-2 text-right">税込金額</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td className="border px-3 py-2">{document.title}</td>
-              <td className="border px-3 py-2 text-right">{document.amount.toLocaleString('ja-JP')}円</td>
-              <td className="border px-3 py-2 text-right">{document.tax_amount.toLocaleString('ja-JP')}円</td>
-              <td className="border px-3 py-2 text-right">{total.toLocaleString('ja-JP')}円</td>
+            {lineItems.map((item, index) => (
+              <tr key={`${item.description}-${index}`}>
+                <td className="border px-3 py-2">{item.description}</td>
+                <td className="border px-3 py-2 text-center">{item.category === 'fee' ? '報酬' : '実費'}</td>
+                <td className="border px-3 py-2 text-right">{item.quantity}</td>
+                <td className="border px-3 py-2 text-right">{formatYen(item.unit_price)}</td>
+                <td className="border px-3 py-2 text-right">{item.tax_rate === 0 ? '非課税' : `${item.tax_rate}%`}</td>
+                <td className="border px-3 py-2 text-right">{formatYen(item.net_amount)}</td>
+                <td className="border px-3 py-2 text-right">{formatYen(item.tax_amount)}</td>
+                <td className="border px-3 py-2 text-right">{formatYen(item.total_amount)}</td>
+              </tr>
+            ))}
+            <tr className="font-semibold">
+              <td className="border px-3 py-2" colSpan={5}>合計</td>
+              <td className="border px-3 py-2 text-right">{formatYen(subtotal)}</td>
+              <td className="border px-3 py-2 text-right">{formatYen(taxTotal)}</td>
+              <td className="border px-3 py-2 text-right">{formatYen(total)}</td>
             </tr>
+          </tbody>
+        </table>
+
+        <table className="mt-6 w-full max-w-lg border-collapse text-sm">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border px-3 py-2 text-left">税率区分</th>
+              <th className="border px-3 py-2 text-right">対象額 税抜</th>
+              <th className="border px-3 py-2 text-right">消費税額</th>
+              <th className="border px-3 py-2 text-right">税込対象額</th>
+            </tr>
+          </thead>
+          <tbody>
+            {taxSummary.map(row => (
+              <tr key={row.tax_rate}>
+                <td className="border px-3 py-2">{row.tax_rate === 0 ? '非課税' : `${row.tax_rate}%対象`}</td>
+                <td className="border px-3 py-2 text-right">{formatYen(row.net_amount)}</td>
+                <td className="border px-3 py-2 text-right">{formatYen(row.tax_amount)}</td>
+                <td className="border px-3 py-2 text-right">{formatYen(row.total_amount)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
@@ -74,4 +118,31 @@ export default async function BillingDocumentPrintPage(props: Props) {
       </section>
     </main>
   )
+}
+
+function getBillingLineItems(document: BillingDocument): EstimateLineItem[] {
+  if (Array.isArray(document.line_items) && document.line_items.length > 0) return document.line_items
+  return [{
+    description: document.title,
+    category: 'fee',
+    quantity: 1,
+    unit_price: document.amount,
+    tax_rate: document.tax_amount > 0 ? 10 : 0,
+    net_amount: document.amount,
+    tax_amount: document.tax_amount,
+    total_amount: document.amount + document.tax_amount,
+  }]
+}
+
+function getTaxSummary(document: BillingDocument, items: EstimateLineItem[]): TaxSummaryLine[] {
+  if (Array.isArray(document.tax_summary) && document.tax_summary.length > 0) return document.tax_summary
+  const map = new Map<number, TaxSummaryLine>()
+  for (const item of items) {
+    const row = map.get(item.tax_rate) ?? { tax_rate: item.tax_rate, net_amount: 0, tax_amount: 0, total_amount: 0 }
+    row.net_amount += item.net_amount
+    row.tax_amount += item.tax_amount
+    row.total_amount += item.total_amount
+    map.set(item.tax_rate, row)
+  }
+  return Array.from(map.values()).sort((a, b) => b.tax_rate - a.tax_rate)
 }

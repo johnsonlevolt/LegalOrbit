@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
-import type { CaseCommunication, CaseEstimate, CaseFile, CaseReview, DocumentCheck, UploadLink } from '@/types/database'
+import { useMemo, useState, useTransition } from 'react'
+import type { CaseCommunication, CaseEstimate, CaseFile, CaseReview, DocumentCheck, EstimateLineItem, TaxSummaryLine, UploadLink } from '@/types/database'
 import {
   classifyCaseFile,
   createCaseCommunication,
@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export function PracticalPanels({
   caseId,
   customerId,
+  customerName,
   files,
   documentChecks,
   uploadLinks,
@@ -34,6 +35,7 @@ export function PracticalPanels({
 }: {
   caseId: string
   customerId: string | null
+  customerName?: string | null
   files: CaseFile[]
   documentChecks: DocumentCheck[]
   uploadLinks: UploadLink[]
@@ -43,7 +45,7 @@ export function PracticalPanels({
 }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      <EstimatePanel caseId={caseId} estimates={estimates} />
+      <EstimatePanel caseId={caseId} customerName={customerName} estimates={estimates} />
       <UploadLinkPanel caseId={caseId} links={uploadLinks} />
       <FileClassificationPanel files={files} documentChecks={documentChecks} />
       <ReviewPanel caseId={caseId} reviews={reviews} />
@@ -221,11 +223,44 @@ function CommunicationPanel({ caseId, customerId, communications }: { caseId: st
   )
 }
 
-function EstimatePanel({ caseId, estimates }: { caseId: string; estimates: CaseEstimate[] }) {
+type EstimateInputLine = {
+  description: string
+  category: 'fee' | 'expense'
+  quantity: number
+  unit_price: number
+  tax_rate: number
+}
+
+function EstimatePanel({ caseId, customerName, estimates }: { caseId: string; customerName?: string | null; estimates: CaseEstimate[] }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [taxInclusion, setTaxInclusion] = useState<'exclusive' | 'inclusive'>('exclusive')
+  const [lines, setLines] = useState<EstimateInputLine[]>([
+    { description: '申請手続報酬', category: 'fee', quantity: 1, unit_price: 0, tax_rate: 10 },
+    { description: '証紙・行政手数料等', category: 'expense', quantity: 1, unit_price: 0, tax_rate: 0 },
+  ])
+
+  const calculated = useMemo(() => calculateEstimateLines(lines, taxInclusion), [lines, taxInclusion])
+
+  function updateLine(index: number, values: Partial<EstimateInputLine>) {
+    setLines(current => current.map((line, i) => i === index ? { ...line, ...values } : line))
+  }
+
+  function addLine(category: 'fee' | 'expense') {
+    setLines(current => [
+      ...current,
+      { description: category === 'fee' ? '報酬項目' : '実費項目', category, quantity: 1, unit_price: 0, tax_rate: category === 'fee' ? 10 : 0 },
+    ])
+  }
+
+  function removeLine(index: number) {
+    setLines(current => current.length <= 1 ? current : current.filter((_, i) => i !== index))
+  }
+
   function create(formData: FormData) {
     const caseId = formData.get('case_id') as string
+    formData.set('line_items', JSON.stringify(lines))
+    formData.set('tax_inclusion', taxInclusion)
     startTransition(async () => {
       const result = await createCaseEstimate(caseId, formData)
       if (!result.success) toast({ title: '見積を保存できませんでした', description: result.error, variant: 'destructive' })
@@ -271,6 +306,8 @@ function EstimatePanel({ caseId, estimates }: { caseId: string; estimates: CaseE
       <CardContent className="space-y-5">
         <form action={create} className="rounded-md border bg-slate-50 p-4">
           <input type="hidden" name="case_id" value={caseId} />
+          <input type="hidden" name="line_items" value={JSON.stringify(lines)} />
+          <input type="hidden" name="tax_inclusion" value={taxInclusion} />
           <div className="grid gap-3 md:grid-cols-2">
             <label className="space-y-1 text-sm">
               <span className="font-medium">見積名</span>
@@ -278,7 +315,7 @@ function EstimatePanel({ caseId, estimates }: { caseId: string; estimates: CaseE
             </label>
             <label className="space-y-1 text-sm">
               <span className="font-medium">宛名</span>
-              <Input name="recipient_name" className="bg-white" />
+              <Input name="recipient_name" className="bg-white" defaultValue={customerName ?? ''} />
             </label>
             <label className="space-y-1 text-sm">
               <span className="font-medium">発行日</span>
@@ -290,19 +327,77 @@ function EstimatePanel({ caseId, estimates }: { caseId: string; estimates: CaseE
             </label>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <label className="space-y-1 text-sm">
-              <span className="font-medium">報酬額</span>
-              <Input name="fee_amount" className="bg-white text-right" type="number" min={0} />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium">実費</span>
-              <Input name="expense_amount" className="bg-white text-right" type="number" min={0} />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium">消費税</span>
-              <Input name="tax_amount" className="bg-white text-right" type="number" min={0} />
-            </label>
+          <div className="mt-4 rounded-md border bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
+              <div>
+                <p className="text-sm font-semibold">見積明細</p>
+                <p className="text-xs text-muted-foreground">報酬・実費を行ごとに追加できます。税額は自動計算します。</p>
+              </div>
+              <Select value={taxInclusion} onValueChange={value => setTaxInclusion(value as 'exclusive' | 'inclusive')}>
+                <SelectTrigger className="h-9 w-32 bg-white"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="exclusive">外税</SelectItem>
+                  <SelectItem value="inclusive">内税</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 p-3">
+              {lines.map((line, index) => (
+                <div key={index} className="grid gap-2 rounded-md border bg-slate-50 p-2 md:grid-cols-[1.2fr_6rem_5rem_8rem_6rem_6rem_auto]">
+                  <Input
+                    className="bg-white"
+                    value={line.description}
+                    onChange={event => updateLine(index, { description: event.target.value })}
+                    placeholder="内容"
+                  />
+                  <Select value={line.category} onValueChange={value => updateLine(index, { category: value as 'fee' | 'expense' })}>
+                    <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fee">報酬</SelectItem>
+                      <SelectItem value="expense">実費</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    className="bg-white text-right"
+                    type="number"
+                    min={1}
+                    value={line.quantity}
+                    onChange={event => updateLine(index, { quantity: Number(event.target.value) || 1 })}
+                    aria-label="数量"
+                  />
+                  <Input
+                    className="bg-white text-right"
+                    type="number"
+                    min={0}
+                    value={line.unit_price}
+                    onChange={event => updateLine(index, { unit_price: Number(event.target.value) || 0 })}
+                    aria-label="単価"
+                  />
+                  <Select value={String(line.tax_rate)} onValueChange={value => updateLine(index, { tax_rate: Number(value) })}>
+                    <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10%</SelectItem>
+                      <SelectItem value="8">8%</SelectItem>
+                      <SelectItem value="0">非課税</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center justify-end text-sm font-medium">
+                    {formatYen(calculated.items[index]?.total_amount ?? 0)}
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removeLine(index)}>削除</Button>
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => addLine('fee')}>報酬を追加</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => addLine('expense')}>実費を追加</Button>
+              </div>
+            </div>
+            <div className="grid gap-2 border-t bg-slate-50 p-3 text-sm md:grid-cols-4">
+              <div><span className="text-muted-foreground">報酬</span><p className="font-semibold">{formatYen(calculated.fee)}</p></div>
+              <div><span className="text-muted-foreground">実費</span><p className="font-semibold">{formatYen(calculated.expense)}</p></div>
+              <div><span className="text-muted-foreground">消費税</span><p className="font-semibold">{formatYen(calculated.tax)}</p></div>
+              <div><span className="text-muted-foreground">税込合計</span><p className="text-lg font-bold">{formatYen(calculated.total)}</p></div>
+            </div>
           </div>
 
           <label className="mt-4 block space-y-1 text-sm">
@@ -336,6 +431,7 @@ function EstimatePanel({ caseId, estimates }: { caseId: string; estimates: CaseE
                   <p className="mt-1 text-lg font-semibold">{formatYen(total)}</p>
                   <p className="text-xs text-muted-foreground">
                     報酬 {formatYen(item.fee_amount)} / 実費 {formatYen(item.expense_amount)} / 税 {formatYen(item.tax_amount)}
+                    {item.tax_inclusion === 'inclusive' ? ' / 内税' : ' / 外税'}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -370,4 +466,49 @@ function estimateStatusLabel(status: string) {
     invoiced: '請求書作成済み',
   }
   return labels[status] ?? status
+}
+
+function calculateEstimateLines(lines: EstimateInputLine[], taxInclusion: 'exclusive' | 'inclusive') {
+  const items: EstimateLineItem[] = lines.map(line => {
+    const quantity = Math.max(1, Number(line.quantity) || 1)
+    const unitPrice = Math.max(0, Math.round(Number(line.unit_price) || 0))
+    const taxRate = line.tax_rate === 8 ? 8 : line.tax_rate === 0 ? 0 : 10
+    const inputAmount = Math.round(quantity * unitPrice)
+    const netAmount = taxInclusion === 'inclusive'
+      ? Math.round(inputAmount / (1 + taxRate / 100))
+      : inputAmount
+    const taxAmount = taxInclusion === 'inclusive'
+      ? inputAmount - netAmount
+      : Math.round(netAmount * taxRate / 100)
+    const totalAmount = netAmount + taxAmount
+
+    return {
+      description: line.description.trim() || (line.category === 'fee' ? '報酬' : '実費'),
+      category: line.category,
+      quantity,
+      unit_price: unitPrice,
+      tax_rate: taxRate,
+      net_amount: netAmount,
+      tax_amount: taxAmount,
+      total_amount: totalAmount,
+    }
+  })
+  const taxSummary = summarizeEstimateTax(items)
+  const fee = items.filter(item => item.category === 'fee').reduce((sum, item) => sum + item.net_amount, 0)
+  const expense = items.filter(item => item.category === 'expense').reduce((sum, item) => sum + item.net_amount, 0)
+  const tax = items.reduce((sum, item) => sum + item.tax_amount, 0)
+  const total = items.reduce((sum, item) => sum + item.total_amount, 0)
+  return { items, taxSummary, fee, expense, tax, total }
+}
+
+function summarizeEstimateTax(items: EstimateLineItem[]): TaxSummaryLine[] {
+  const map = new Map<number, TaxSummaryLine>()
+  for (const item of items) {
+    const current = map.get(item.tax_rate) ?? { tax_rate: item.tax_rate, net_amount: 0, tax_amount: 0, total_amount: 0 }
+    current.net_amount += item.net_amount
+    current.tax_amount += item.tax_amount
+    current.total_amount += item.total_amount
+    map.set(item.tax_rate, current)
+  }
+  return Array.from(map.values()).sort((a, b) => b.tax_rate - a.tax_rate)
 }

@@ -143,6 +143,7 @@ export default async function CaseDetailPage(props: Props) {
       <PracticalPanels
         caseId={params.id}
         customerId={caseData.customer_id}
+        customerName={caseData.customers?.company_name ?? null}
         files={caseFiles}
         documentChecks={documentChecks}
         uploadLinks={uploadLinks}

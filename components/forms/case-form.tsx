@@ -179,7 +179,7 @@ export function CaseForm({ caseData, customers, assignees = [], templates = [] }
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {!caseData && templates.length > 0 && (
+        {!caseData && (
           <div className="space-y-4 rounded-md border bg-white p-4 md:col-span-2">
             <div>
               <Label>書類テンプレート</Label>

@@ -11,6 +11,8 @@ import type {
   CaseFile,
   CaseReview,
   DocumentCheck,
+  EstimateLineItem,
+  TaxSummaryLine,
   UploadLink,
 } from '@/types/database'
 
@@ -191,9 +193,12 @@ export async function createCaseEstimate(caseId: string, formData: FormData): Pr
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: '未認証です。' }
-  const fee = Number(formData.get('fee_amount') ?? 0)
-  const expense = Number(formData.get('expense_amount') ?? 0)
-  const tax = Number(formData.get('tax_amount') ?? Math.floor(fee * 0.1))
+  const taxInclusion = String(formData.get('tax_inclusion') ?? 'exclusive') === 'inclusive' ? 'inclusive' : 'exclusive'
+  const estimateItems = parseEstimateItems(String(formData.get('line_items') ?? '[]'), taxInclusion)
+  const fee = estimateItems.filter(item => item.category === 'fee').reduce((sum, item) => sum + item.net_amount, 0)
+  const expense = estimateItems.filter(item => item.category === 'expense').reduce((sum, item) => sum + item.net_amount, 0)
+  const tax = estimateItems.reduce((sum, item) => sum + item.tax_amount, 0)
+  const taxSummary = summarizeTax(estimateItems)
   const { data, error } = await supabase.from('case_estimates').insert({
     user_id: user.id,
     case_id: caseId,
@@ -201,6 +206,9 @@ export async function createCaseEstimate(caseId: string, formData: FormData): Pr
     recipient_name: String(formData.get('recipient_name') ?? '').trim() || null,
     issued_at: String(formData.get('issued_at') ?? '').trim() || new Date().toISOString().split('T')[0],
     due_date: String(formData.get('due_date') ?? '').trim() || null,
+    line_items: estimateItems,
+    tax_inclusion: taxInclusion,
+    tax_summary: taxSummary,
     fee_amount: fee,
     expense_amount: expense,
     tax_amount: tax,
@@ -228,6 +236,8 @@ export async function issueInvoiceFromEstimate(estimateId: string): Promise<Acti
   const amount = Number(estimate.fee_amount ?? 0) + Number(estimate.expense_amount ?? 0)
   const taxAmount = Number(estimate.tax_amount ?? 0)
   const recipient = estimate.recipient_name || estimate.cases?.customers?.company_name || 'お客様'
+  const lineItems = Array.isArray(estimate.line_items) ? estimate.line_items : []
+  const taxSummary = Array.isArray(estimate.tax_summary) ? estimate.tax_summary : []
 
   const { data: document, error } = await supabase.from('billing_documents').insert({
     user_id: user.id,
@@ -238,6 +248,9 @@ export async function issueInvoiceFromEstimate(estimateId: string): Promise<Acti
     recipient_name: recipient,
     amount,
     tax_amount: taxAmount,
+    line_items: lineItems,
+    tax_inclusion: estimate.tax_inclusion ?? 'exclusive',
+    tax_summary: taxSummary,
     status: 'draft',
     memo: estimate.memo ?? null,
   }).select('id').single()
@@ -264,6 +277,76 @@ export async function markEstimateAccepted(estimateId: string): Promise<ActionRe
   if (error) return { success: false, error: error.message }
   revalidatePath(`/cases/${data.case_id}`)
   return { success: true, data: data as CaseEstimate }
+}
+
+function parseEstimateItems(raw: string, taxInclusion: 'exclusive' | 'inclusive'): EstimateLineItem[] {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    parsed = []
+  }
+
+  const rows = Array.isArray(parsed) ? parsed : []
+  const items = rows
+    .map(row => {
+      if (!row || typeof row !== 'object') return null
+      const record = row as Record<string, unknown>
+      const description = String(record.description ?? '').trim()
+      const category = record.category === 'expense' ? 'expense' : 'fee'
+      const quantity = Math.max(1, Number(record.quantity ?? 1) || 1)
+      const unitPrice = Math.max(0, Math.round(Number(record.unit_price ?? 0) || 0))
+      const taxRate = Number(record.tax_rate ?? 10) === 8 ? 8 : Number(record.tax_rate ?? 10) === 0 ? 0 : 10
+      const inputAmount = Math.round(quantity * unitPrice)
+      const netAmount = taxInclusion === 'inclusive'
+        ? Math.round(inputAmount / (1 + taxRate / 100))
+        : inputAmount
+      const taxAmount = taxInclusion === 'inclusive'
+        ? inputAmount - netAmount
+        : Math.round(netAmount * taxRate / 100)
+      const totalAmount = netAmount + taxAmount
+
+      if (!description && inputAmount === 0) return null
+      return {
+        description: description || (category === 'fee' ? '報酬' : '実費'),
+        category,
+        quantity,
+        unit_price: unitPrice,
+        tax_rate: taxRate,
+        net_amount: netAmount,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+      } satisfies EstimateLineItem
+    })
+    .filter((item): item is EstimateLineItem => Boolean(item))
+
+  return items.length > 0 ? items : [{
+    description: '報酬',
+    category: 'fee',
+    quantity: 1,
+    unit_price: 0,
+    tax_rate: 10,
+    net_amount: 0,
+    tax_amount: 0,
+    total_amount: 0,
+  }]
+}
+
+function summarizeTax(items: EstimateLineItem[]): TaxSummaryLine[] {
+  const map = new Map<number, TaxSummaryLine>()
+  for (const item of items) {
+    const current = map.get(item.tax_rate) ?? {
+      tax_rate: item.tax_rate,
+      net_amount: 0,
+      tax_amount: 0,
+      total_amount: 0,
+    }
+    current.net_amount += item.net_amount
+    current.tax_amount += item.tax_amount
+    current.total_amount += item.total_amount
+    map.set(item.tax_rate, current)
+  }
+  return Array.from(map.values()).sort((a, b) => b.tax_rate - a.tax_rate)
 }
 
 export async function classifyCaseFile(fileId: string, category: string, documentCheckId?: string): Promise<ActionResult<CaseFile>> {

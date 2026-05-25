@@ -373,6 +373,9 @@ export interface CaseEstimate {
   user_id: string
   case_id: string
   title: string
+  line_items: EstimateLineItem[]
+  tax_inclusion: 'exclusive' | 'inclusive'
+  tax_summary: TaxSummaryLine[]
   fee_amount: number
   expense_amount: number
   tax_amount: number
@@ -384,6 +387,24 @@ export interface CaseEstimate {
   accepted_at: string | null
   memo: string | null
   created_at: string
+}
+
+export interface EstimateLineItem {
+  description: string
+  category: 'fee' | 'expense'
+  quantity: number
+  unit_price: number
+  tax_rate: number
+  net_amount: number
+  tax_amount: number
+  total_amount: number
+}
+
+export interface TaxSummaryLine {
+  tax_rate: number
+  net_amount: number
+  tax_amount: number
+  total_amount: number
 }
 
 export interface NotificationSetting {
@@ -470,6 +491,9 @@ export interface BillingDocument {
   recipient_name: string
   amount: number
   tax_amount: number
+  line_items: EstimateLineItem[]
+  tax_inclusion: 'exclusive' | 'inclusive'
+  tax_summary: TaxSummaryLine[]
   status: string
   memo: string | null
   stripe_invoice_id: string | null
