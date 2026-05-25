@@ -40,7 +40,6 @@ export function Sidebar({ userEmail, isOpen, onClose }: SidebarProps) {
       )}
     >
       <div className="p-4 border-b relative">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Legal Orbit</p>
         <h1 className="text-sm font-bold text-foreground leading-tight">Legal Orbit 行政書士</h1>
         <p className="text-xs text-muted-foreground mt-1 truncate">{userEmail}</p>
         {onClose && (
