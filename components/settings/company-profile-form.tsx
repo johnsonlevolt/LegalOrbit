@@ -75,6 +75,14 @@ export function CompanyProfileForm({ profile }: { profile: BillingProfile | null
         <Label>所在地</Label>
         <Input name="address" defaultValue={profile?.address ?? ''} className="bg-white" />
       </div>
+      <div className="space-y-1 md:col-span-2">
+        <Label>角印画像</Label>
+        <Input name="seal_file" type="file" accept="image/png,image/jpeg,image/webp" className="bg-white" />
+        <p className="text-xs text-muted-foreground">
+          PDF出力時に自社名の横へ配置します。背景を透過したPNGを推奨します。透過されていない画像は白い背景ごと表示されます。
+        </p>
+        {profile?.seal_image_path && <p className="text-xs text-emerald-700">角印画像は登録済みです。新しい画像を選ぶと差し替えます。</p>}
+      </div>
 
       <div className="space-y-3 md:col-span-2">
         <div className="flex items-center justify-between gap-3">

@@ -398,6 +398,7 @@ export interface EstimateLineItem {
   description: string
   category: 'fee' | 'expense'
   quantity: number
+  unit: string
   unit_price: number
   tax_rate: number
   net_amount: number
@@ -476,6 +477,7 @@ export interface BillingProfile {
   postal_code: string | null
   address: string | null
   tax_id: string | null
+  seal_image_path: string | null
   bank_accounts: BankAccount[]
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
@@ -505,6 +507,7 @@ export interface BillingIssuerSnapshot {
   postal_code?: string | null
   address?: string | null
   tax_id?: string | null
+  seal_image_path?: string | null
 }
 
 export interface BillingDocument {

@@ -221,6 +221,35 @@ export async function createCaseEstimate(caseId: string, formData: FormData): Pr
   return { success: true, data: data as CaseEstimate }
 }
 
+export async function updateCaseEstimate(estimateId: string, formData: FormData): Promise<ActionResult<CaseEstimate>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+
+  const taxInclusion = String(formData.get('tax_inclusion') ?? 'exclusive') === 'inclusive' ? 'inclusive' : 'exclusive'
+  const estimateItems = parseEstimateItems(String(formData.get('line_items') ?? '[]'), taxInclusion)
+  const fee = estimateItems.filter(item => item.category === 'fee').reduce((sum, item) => sum + item.net_amount, 0)
+  const expense = estimateItems.filter(item => item.category === 'expense').reduce((sum, item) => sum + item.net_amount, 0)
+  const tax = estimateItems.reduce((sum, item) => sum + item.tax_amount, 0)
+  const taxSummary = summarizeTax(estimateItems)
+  const { data, error } = await supabase.from('case_estimates').update({
+    title: String(formData.get('title') ?? '').trim() || '見積',
+    recipient_name: String(formData.get('recipient_name') ?? '').trim() || null,
+    issued_at: String(formData.get('issued_at') ?? '').trim() || new Date().toISOString().split('T')[0],
+    due_date: String(formData.get('due_date') ?? '').trim() || null,
+    line_items: estimateItems,
+    tax_inclusion: taxInclusion,
+    tax_summary: taxSummary,
+    fee_amount: fee,
+    expense_amount: expense,
+    tax_amount: tax,
+    memo: String(formData.get('memo') ?? '').trim() || null,
+  }).eq('id', estimateId).eq('user_id', user.id).select().single()
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/cases/${data.case_id}`)
+  return { success: true, data: data as CaseEstimate }
+}
+
 export async function issueInvoiceFromEstimate(estimateId: string, formData?: FormData): Promise<ActionResult<{ document_id: string }>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -251,6 +280,7 @@ export async function issueInvoiceFromEstimate(estimateId: string, formData?: Fo
     postal_code: profile?.postal_code ?? null,
     address: profile?.address ?? null,
     tax_id: profile?.tax_id ?? null,
+    seal_image_path: profile?.seal_image_path ?? null,
   }
 
   const { data: document, error } = await supabase.from('billing_documents').insert({
@@ -345,6 +375,7 @@ function parseEstimateItems(raw: string, taxInclusion: 'exclusive' | 'inclusive'
       const description = String(record.description ?? '').trim()
       const category = record.category === 'expense' ? 'expense' : 'fee'
       const quantity = Math.max(1, Number(record.quantity ?? 1) || 1)
+      const unit = String(record.unit ?? '').trim() || '式'
       const unitPrice = Math.max(0, Math.round(Number(record.unit_price ?? 0) || 0))
       const taxRate = Number(record.tax_rate ?? 10) === 8 ? 8 : Number(record.tax_rate ?? 10) === 0 ? 0 : 10
       const inputAmount = Math.round(quantity * unitPrice)
@@ -361,6 +392,7 @@ function parseEstimateItems(raw: string, taxInclusion: 'exclusive' | 'inclusive'
         description: description || (category === 'fee' ? '報酬' : '実費'),
         category,
         quantity,
+        unit,
         unit_price: unitPrice,
         tax_rate: taxRate,
         net_amount: netAmount,
@@ -374,6 +406,7 @@ function parseEstimateItems(raw: string, taxInclusion: 'exclusive' | 'inclusive'
     description: '報酬',
     category: 'fee',
     quantity: 1,
+    unit: '式',
     unit_price: 0,
     tax_rate: 10,
     net_amount: 0,

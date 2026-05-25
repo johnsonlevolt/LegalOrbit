@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getBillingDocument, getBillingProfile } from '@/lib/actions/billing'
+import { getBillingDocument, getBillingProfile, getSealImageUrl } from '@/lib/actions/billing'
 import { formatYen } from '@/lib/billing/plans'
 import type { BillingDocument, EstimateLineItem, TaxSummaryLine } from '@/types/database'
 
@@ -17,6 +17,7 @@ export default async function BillingDocumentPrintPage(props: Props) {
 
   const typeLabel = document.document_type === 'invoice' ? '請求書' : '領収書'
   const issuer = { ...profile, ...(document.issuer_snapshot ?? {}) }
+  const sealUrl = await getSealImageUrl(issuer.seal_image_path)
   const lineItems = getBillingLineItems(document)
   const taxSummary = getTaxSummary(document, lineItems)
   const subtotal = lineItems.reduce((sum, item) => sum + item.net_amount, 0)
@@ -33,14 +34,20 @@ export default async function BillingDocumentPrintPage(props: Props) {
             <p className="mt-2 text-sm">発行日: {new Date(document.issue_date).toLocaleDateString('ja-JP')}</p>
             <p className="text-sm">番号: {document.document_number}</p>
           </div>
-          <div className="text-right text-sm leading-6">
+          <div className="relative min-w-64 text-right text-sm leading-6">
             <p className="font-semibold">{issuer.billing_name ?? 'Legal Orbit 行政書士'}</p>
+            {sealUrl && (
+              <img
+                src={sealUrl}
+                alt="角印"
+                className="absolute -right-2 top-0 h-[72px] w-[72px] object-contain opacity-90"
+              />
+            )}
             {issuer.tax_id && <p>登録番号: {issuer.tax_id}</p>}
             {issuer.postal_code && <p>〒{issuer.postal_code}</p>}
             {issuer.address && <p>{issuer.address}</p>}
             {issuer.phone && <p>TEL: {issuer.phone}</p>}
             {issuer.billing_email && <p>{issuer.billing_email}</p>}
-            <p>税計算: {document.tax_inclusion === 'inclusive' ? '内税' : '外税'}</p>
           </div>
         </div>
 
@@ -64,9 +71,10 @@ export default async function BillingDocumentPrintPage(props: Props) {
         <table className="mt-8 w-full border-collapse text-sm">
           <thead>
             <tr className="bg-gray-100">
-              <th className="border px-3 py-2 text-left">内容</th>
+              <th className="border px-3 py-2 text-left">名目</th>
               <th className="border px-3 py-2 text-center">区分</th>
               <th className="border px-3 py-2 text-right">数量</th>
+              <th className="border px-3 py-2 text-center">単位</th>
               <th className="border px-3 py-2 text-right">単価</th>
               <th className="border px-3 py-2 text-right">税率</th>
               <th className="border px-3 py-2 text-right">税抜金額</th>
@@ -80,6 +88,7 @@ export default async function BillingDocumentPrintPage(props: Props) {
                 <td className="border px-3 py-2">{item.description}</td>
                 <td className="border px-3 py-2 text-center">{item.category === 'fee' ? '報酬' : '実費'}</td>
                 <td className="border px-3 py-2 text-right">{item.quantity}</td>
+                <td className="border px-3 py-2 text-center">{item.unit ?? '式'}</td>
                 <td className="border px-3 py-2 text-right">{formatYen(item.unit_price)}</td>
                 <td className="border px-3 py-2 text-right">{item.tax_rate === 0 ? '非課税' : `${item.tax_rate}%`}</td>
                 <td className="border px-3 py-2 text-right">{formatYen(item.net_amount)}</td>
@@ -88,7 +97,7 @@ export default async function BillingDocumentPrintPage(props: Props) {
               </tr>
             ))}
             <tr className="font-semibold">
-              <td className="border px-3 py-2" colSpan={5}>合計</td>
+              <td className="border px-3 py-2" colSpan={6}>合計</td>
               <td className="border px-3 py-2 text-right">{formatYen(subtotal)}</td>
               <td className="border px-3 py-2 text-right">{formatYen(taxTotal)}</td>
               <td className="border px-3 py-2 text-right">{formatYen(total)}</td>
@@ -116,12 +125,9 @@ export default async function BillingDocumentPrintPage(props: Props) {
             ))}
           </tbody>
         </table>
+        <p className="mt-2 text-xs text-gray-500">税計算: {document.tax_inclusion === 'inclusive' ? '内税' : '外税'}</p>
 
-        {document.memo && (
-          <div className="mt-8 whitespace-pre-wrap rounded-md border p-4 text-sm">
-            {document.memo}
-          </div>
-        )}
+        {document.memo && <div className="mt-8 whitespace-pre-wrap rounded-md border p-4 text-sm">{document.memo}</div>}
         {document.document_type === 'invoice' && (document.bank_accounts ?? []).length > 0 && (
           <div className="mt-8 rounded-md border p-4 text-sm">
             <p className="font-semibold">振込先</p>
@@ -147,6 +153,7 @@ function getBillingLineItems(document: BillingDocument): EstimateLineItem[] {
     description: document.title,
     category: 'fee',
     quantity: 1,
+    unit: '式',
     unit_price: document.amount,
     tax_rate: document.tax_amount > 0 ? 10 : 0,
     net_amount: document.amount,

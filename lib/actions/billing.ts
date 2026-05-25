@@ -304,6 +304,14 @@ export async function getBillingDocument(id: string): Promise<BillingDocument | 
   return data as BillingDocument
 }
 
+export async function getSealImageUrl(path: string | null | undefined): Promise<string | null> {
+  if (!path) return null
+  const supabase = await createClient()
+  const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(path, 60 * 10)
+  if (error) return null
+  return data.signedUrl
+}
+
 export async function activateCouponCode(formData: FormData): Promise<ActionResult<{ message: string }>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -476,6 +484,21 @@ export async function saveBillingProfile(formData: FormData): Promise<ActionResu
   if (!user) return { success: false, error: '未認証です。' }
 
   const bankAccounts = parseBankAccounts(String(formData.get('bank_accounts') ?? '[]'))
+  const currentProfile = await getBillingProfile()
+  const sealFile = formData.get('seal_file')
+  let sealImagePath = currentProfile?.seal_image_path ?? null
+  if (sealFile instanceof File && sealFile.size > 0) {
+    if (!sealFile.type.startsWith('image/')) return { success: false, error: '角印はPNG/JPEG/WebPなどの画像ファイルを指定してください。' }
+    const extension = sealFile.type.includes('png') ? 'png' : sealFile.type.includes('webp') ? 'webp' : 'jpg'
+    const path = `${user.id}/billing/seal-${Date.now()}.${extension}`
+    const buffer = Buffer.from(await sealFile.arrayBuffer())
+    const { error: uploadError } = await supabase.storage.from('case-documents').upload(path, buffer, {
+      contentType: sealFile.type,
+      upsert: true,
+    })
+    if (uploadError) return { success: false, error: uploadError.message }
+    sealImagePath = path
+  }
   const payload = {
     user_id: user.id,
     billing_name: String(formData.get('billing_name') ?? '').trim() || null,
@@ -484,6 +507,7 @@ export async function saveBillingProfile(formData: FormData): Promise<ActionResu
     postal_code: String(formData.get('postal_code') ?? '').trim() || null,
     address: String(formData.get('address') ?? '').trim() || null,
     tax_id: String(formData.get('tax_id') ?? '').trim() || null,
+    seal_image_path: sealImagePath,
     bank_accounts: bankAccounts,
   }
 
