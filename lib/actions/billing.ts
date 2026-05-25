@@ -10,6 +10,7 @@ import { couponHint, hashCouponCode, normalizeCouponCode } from '@/lib/security/
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 type CouponDiscountType = 'percent' | 'amount' | 'free_months' | 'free_until'
+type CouponActivationType = 'checkout_only' | 'immediate'
 
 type CouponRecord = {
   id: string
@@ -35,6 +36,7 @@ type CouponRecord = {
 
 type GasCoupon = Partial<Omit<CouponRecord, 'id' | 'owner_user_id' | 'code_hash' | 'code_hint' | 'used_count'>> & {
   code?: string
+  activation_type?: CouponActivationType
 }
 
 type GasCouponResponse =
@@ -69,6 +71,12 @@ function isPastDate(value: string | null | undefined) {
   return value ? new Date(value).getTime() < Date.now() : false
 }
 
+function addMonths(date: Date, months: number) {
+  const next = new Date(date)
+  next.setMonth(next.getMonth() + months)
+  return next
+}
+
 function validateCoupon(coupon: CouponRecord, nextPlan: PlanName) {
   if (coupon.status !== 'active') return 'このクーポンは現在使えません。'
   if (isPastDate(coupon.expires_at)) return 'クーポンの有効期限が切れています。'
@@ -84,6 +92,7 @@ async function fetchCouponFromGas(params: {
   billingCycle: BillingCycle
   userId: string
   email: string
+  action?: 'checkout' | 'activate'
 }): Promise<ActionResult<GasCoupon | null>> {
   const endpoint = process.env.COUPON_GAS_ENDPOINT
   if (!endpoint) return { success: true, data: null }
@@ -99,6 +108,7 @@ async function fetchCouponFromGas(params: {
         billing_cycle: params.billingCycle,
         user_id: params.userId,
         email: params.email,
+        action: params.action ?? 'checkout',
       }),
       cache: 'no-store',
     })
@@ -123,6 +133,8 @@ async function upsertGasCoupon(
 ): Promise<ActionResult<CouponRecord>> {
   const discountType = (coupon.discount_type ?? 'percent') as CouponDiscountType
   const discountValue = toNumberOrDefault(coupon.discount_value, discountType === 'percent' ? 100 : 0)
+  const activationType = coupon.activation_type ?? 'checkout_only'
+  const note = [coupon.note, `activation_type=${activationType}`].filter(Boolean).join(' / ')
   const payload = {
     owner_user_id: userId,
     code_hash: hashCouponCode(code),
@@ -140,7 +152,7 @@ async function upsertGasCoupon(
     max_redemptions: coupon.max_redemptions === undefined || coupon.max_redemptions === null ? null : toNumberOrDefault(coupon.max_redemptions, 0),
     status: coupon.status ?? 'active',
     stripe_coupon_id: coupon.stripe_coupon_id ?? null,
-    note: coupon.note ?? 'Google Apps Scriptから自動有効化',
+    note: note || 'Google Apps Scriptから自動有効化',
   }
 
   const { data, error } = await supabase
@@ -169,7 +181,7 @@ async function getOrActivateCoupon(params: {
   if (error && !error.message.includes('schema cache')) return { success: false, error: error.message }
   if (localCoupon) return { success: true, data: localCoupon as CouponRecord }
 
-  const gasResult = await fetchCouponFromGas(params)
+  const gasResult = await fetchCouponFromGas({ ...params, action: 'checkout' })
   if (!gasResult.success) return gasResult
   if (!gasResult.data) return { success: false, error: 'クーポンコードが見つかりません。' }
   return upsertGasCoupon(params.supabase, params.userId, params.code, gasResult.data)
@@ -199,6 +211,43 @@ async function ensureStripeCoupon(
 
   await supabase.from('subscription_coupons').update({ stripe_coupon_id: stripeCoupon.id }).eq('id', coupon.id)
   return stripeCoupon.id
+}
+
+async function recordCouponRedemption(params: {
+  supabase: SupabaseServerClient
+  coupon: CouponRecord
+  userId: string
+  planName: PlanName
+  billingCycle: BillingCycle
+  metadata?: Record<string, unknown>
+}) {
+  const { data: existing } = await params.supabase
+    .from('subscription_coupon_redemptions')
+    .select('id')
+    .eq('coupon_id', params.coupon.id)
+    .eq('redeemer_user_id', params.userId)
+    .maybeSingle()
+  if (existing) return
+
+  const { data: profile } = await params.supabase
+    .from('billing_profiles')
+    .select('id')
+    .eq('user_id', params.userId)
+    .maybeSingle()
+
+  const { error } = await params.supabase.from('subscription_coupon_redemptions').insert({
+    coupon_id: params.coupon.id,
+    redeemer_user_id: params.userId,
+    billing_profile_id: profile?.id ?? null,
+    referrer_name: params.coupon.referrer_name,
+    referrer_email: params.coupon.referrer_email,
+    referrer_user_id: params.coupon.referrer_user_id,
+    plan_name: params.planName,
+    billing_cycle: params.billingCycle,
+    metadata: params.metadata ?? {},
+  })
+  if (error) throw new Error(error.message)
+  await params.supabase.rpc('increment_coupon_used_count', { coupon_id_arg: params.coupon.id }).throwOnError()
 }
 
 export async function getBillingProfile(): Promise<BillingProfile | null> {
@@ -232,6 +281,80 @@ export async function getBillingDocument(id: string): Promise<BillingDocument | 
   const { data, error } = await supabase.from('billing_documents').select('*').eq('id', id).eq('user_id', user.id).single()
   if (isMissingBillingTable(error) || error) return null
   return data as BillingDocument
+}
+
+export async function activateCouponCode(formData: FormData): Promise<ActionResult<{ message: string }>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) return { success: false, error: '未認証です。' }
+
+  const code = normalizeCouponCode(String(formData.get('coupon_code') ?? ''))
+  if (!code) return { success: false, error: 'クーポンコードを入力してください。' }
+
+  const currentProfile = await getBillingProfile()
+  const gasResult = await fetchCouponFromGas({
+    code,
+    nextPlan: asPlanName(formData.get('plan_name')),
+    billingCycle: asBillingCycle(formData.get('billing_cycle')),
+    userId: user.id,
+    email: user.email,
+    action: 'activate',
+  })
+  if (!gasResult.success) return gasResult
+  if (!gasResult.data) return { success: false, error: 'クーポンコードが見つかりません。' }
+  if ((gasResult.data.activation_type ?? 'checkout_only') !== 'immediate') {
+    return { success: false, error: 'このコードは課金登録時のみ有効です。対象プランの決済へ進むと適用されます。' }
+  }
+
+  const couponResult = await upsertGasCoupon(supabase, user.id, code, gasResult.data)
+  if (!couponResult.success) return couponResult
+  const coupon = couponResult.data
+  const planName = asPlanName(coupon.plan_name)
+  if (planName === 'Free') return { success: false, error: '即時有効化するコードには対象プランを設定してください。' }
+  if (!canUpgrade(asPlanName(currentProfile?.plan_name), planName)) {
+    return { success: false, error: '現在のプランより低いプランのコードは有効化できません。' }
+  }
+
+  const couponError = validateCoupon(coupon, planName)
+  if (couponError) return { success: false, error: couponError }
+  if (coupon.discount_type !== 'free_months' && coupon.discount_type !== 'free_until') {
+    return { success: false, error: '課金登録なしで有効化できるのは無料期間コードだけです。' }
+  }
+
+  const now = new Date()
+  const periodEnd = coupon.discount_type === 'free_until' && coupon.free_until
+    ? new Date(coupon.free_until)
+    : addMonths(now, Math.max(1, coupon.discount_value))
+  if (periodEnd.getTime() <= now.getTime()) return { success: false, error: '無料期間が過去日になっています。' }
+
+  const { error } = await supabase.from('billing_profiles').upsert({
+    user_id: user.id,
+    stripe_customer_id: currentProfile?.stripe_customer_id ?? null,
+    stripe_subscription_id: currentProfile?.stripe_subscription_id ?? null,
+    plan_name: planName,
+    billing_cycle: currentProfile?.billing_cycle ?? 'monthly',
+    plan_status: 'coupon_active',
+    current_period_start: now.toISOString(),
+    current_period_end: periodEnd.toISOString(),
+    cancel_at_period_end: true,
+  }, { onConflict: 'user_id' })
+  if (isMissingBillingTable(error)) return { success: false, error: '課金管理テーブルが未作成です。Supabaseで課金マイグレーションを実行してください。' }
+  if (error) return { success: false, error: error.message }
+
+  await recordCouponRedemption({
+    supabase,
+    coupon,
+    userId: user.id,
+    planName,
+    billingCycle: 'monthly',
+    metadata: { activation_type: 'immediate' },
+  })
+
+  revalidatePath('/settings/account')
+  return {
+    success: true,
+    data: { message: `${planName}を${periodEnd.toLocaleDateString('ja-JP')}まで有効化しました。` },
+  }
 }
 
 export async function createCheckoutSession(formData: FormData): Promise<ActionResult<{ url: string }>> {

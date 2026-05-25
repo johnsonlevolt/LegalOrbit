@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Check, ExternalLink, Sparkles } from 'lucide-react'
-import { createCheckoutSession, createCustomerPortalSession, saveBillingProfile } from '@/lib/actions/billing'
+import { activateCouponCode, createCheckoutSession, createCustomerPortalSession, saveBillingProfile } from '@/lib/actions/billing'
 import { formatYen, paidPlans, plans, type BillingCycle, type PlanName } from '@/lib/billing/plans'
 import type { BillingDocument, BillingProfile } from '@/types/database'
 import { toast } from '@/hooks/use-toast'
@@ -19,15 +19,33 @@ export function BillingSettingsForm({
 }) {
   const [isPending, startTransition] = useTransition()
   const [cycle, setCycle] = useState<BillingCycle>('yearly')
+  const [selectedPlan, setSelectedPlan] = useState<PlanName>('Starter')
+  const [couponCode, setCouponCode] = useState('')
   const currentPlan = (profile?.plan_name ?? 'Free') as PlanName
 
-  function checkout(planName: PlanName) {
+  function couponFormData(planName = selectedPlan) {
     const formData = new FormData()
     formData.set('plan_name', planName)
     formData.set('billing_cycle', cycle)
-    formData.set('coupon_code', document.querySelector<HTMLInputElement>('#coupon_code')?.value ?? '')
+    formData.set('coupon_code', couponCode)
+    return formData
+  }
+
+  function activateCoupon() {
     startTransition(async () => {
-      const result = await createCheckoutSession(formData)
+      const result = await activateCouponCode(couponFormData())
+      if (!result.success) {
+        toast({ title: 'クーポンを有効化できませんでした', description: result.error, variant: 'destructive' })
+        return
+      }
+      toast({ title: 'クーポンを有効化しました', description: result.data.message })
+    })
+  }
+
+  function checkout(planName: PlanName) {
+    setSelectedPlan(planName)
+    startTransition(async () => {
+      const result = await createCheckoutSession(couponFormData(planName))
       if (!result.success) {
         toast({ title: '決済を開始できませんでした', description: result.error, variant: 'destructive' })
         return
@@ -97,10 +115,24 @@ export function BillingSettingsForm({
           </div>
         </div>
 
-        <div className="mt-4 max-w-sm space-y-1">
+        <div className="mt-4 max-w-xl space-y-1">
           <Label htmlFor="coupon_code">クーポンコード</Label>
-          <Input id="coupon_code" className="bg-white" placeholder="コードを入力" autoCapitalize="characters" />
-          <p className="text-xs text-muted-foreground">コードを入力して決済へ進むと、Googleシート上の条件を自動照会します。</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              id="coupon_code"
+              className="bg-white"
+              placeholder="コードを入力"
+              autoCapitalize="characters"
+              value={couponCode}
+              onChange={event => setCouponCode(event.target.value)}
+            />
+            <Button type="button" variant="outline" disabled={isPending || !couponCode.trim()} onClick={activateCoupon}>
+              有効化
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            即時有効コードはここで無料利用を付与できます。課金登録時のみ有効なコードは、対象プランの決済へ進むと自動適用されます。
+          </p>
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-3">

@@ -34,7 +34,7 @@ function doPost(e) {
 
     const row = rows[index];
     const coupon = buildCoupon_(row);
-    const validationError = validateCoupon_(coupon, request.plan_name);
+    const validationError = validateCoupon_(coupon, request.plan_name, request.action);
     if (validationError) return json_({ ok: false, error: validationError }, 400);
 
     writeHistory_(spreadsheet, {
@@ -44,6 +44,7 @@ function doPost(e) {
       user_id: request.user_id || '',
       plan_name: request.plan_name || '',
       billing_cycle: request.billing_cycle || '',
+      action: request.action || 'checkout',
       result: 'validated',
     });
 
@@ -79,6 +80,7 @@ function readRows_(sheet) {
 
 function buildCoupon_(row) {
   const discountType = value_(row.discount_type, row['割引種別']) || 'percent';
+  const activationType = value_(row.activation_type, row['有効化方法']) || 'checkout_only';
   return {
     code: normalizeCode_(value_(row.code, row['コード'])),
     label: value_(row.label, row['名称']) || value_(row.code, row['コード']),
@@ -88,6 +90,7 @@ function buildCoupon_(row) {
     plan_name: value_(row.plan_name, row['対象プラン']) || null,
     discount_type: discountType,
     discount_value: number_(value_(row.discount_value, row['割引値']), discountType === 'percent' ? 100 : 0),
+    activation_type: activationType,
     free_until: dateText_(value_(row.free_until, row['無料提供期限'])),
     expires_at: dateText_(value_(row.expires_at, row['利用期限'])),
     max_redemptions: nullableNumber_(value_(row.max_redemptions, row['利用上限回数'])),
@@ -97,12 +100,14 @@ function buildCoupon_(row) {
   };
 }
 
-function validateCoupon_(coupon, planName) {
+function validateCoupon_(coupon, planName, action) {
   if (coupon.status !== 'active') return 'このクーポンは現在使えません。';
   if (coupon.expires_at && new Date(coupon.expires_at).getTime() < Date.now()) return 'クーポンの有効期限が切れています。';
   if (coupon.free_until && coupon.discount_type === 'free_until' && new Date(coupon.free_until).getTime() < Date.now()) return '無料提供期限が切れています。';
   if (coupon.plan_name && planName && coupon.plan_name !== planName) return 'このクーポンは選択したプランでは使えません。';
   if (coupon.max_redemptions !== null && coupon.max_redemptions <= countUsed_(coupon.code)) return 'このクーポンは利用上限に達しています。';
+  if (action === 'activate' && coupon.activation_type !== 'immediate') return 'このコードは課金登録時のみ有効です。';
+  if (action === 'activate' && !coupon.plan_name) return '即時有効化コードには対象プランを設定してください。';
   return null;
 }
 
@@ -118,7 +123,7 @@ function writeHistory_(spreadsheet, record) {
   let sheet = spreadsheet.getSheetByName(HISTORY_SHEET_NAME);
   if (!sheet) {
     sheet = spreadsheet.insertSheet(HISTORY_SHEET_NAME);
-    sheet.appendRow(['used_at', 'code', 'email', 'user_id', 'plan_name', 'billing_cycle', 'result']);
+    sheet.appendRow(['used_at', 'code', 'email', 'user_id', 'plan_name', 'billing_cycle', 'action', 'result']);
   }
   sheet.appendRow([
     record.used_at,
@@ -127,6 +132,7 @@ function writeHistory_(spreadsheet, record) {
     record.user_id,
     record.plan_name,
     record.billing_cycle,
+    record.action,
     record.result,
   ]);
 }
@@ -160,7 +166,7 @@ function dateText_(value) {
   return String(value).trim() || null;
 }
 
-function json_(body, statusCode) {
+function json_(body) {
   const output = ContentService.createTextOutput(JSON.stringify(body));
   output.setMimeType(ContentService.MimeType.JSON);
   return output;
