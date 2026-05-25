@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, Briefcase, Building2, ClipboardList, FileStack, Gift, LayoutDashboard, ListChecks, ListTodo, LogOut, Settings, User, Users, X } from 'lucide-react'
+import { Bell, Briefcase, Building2, ClipboardList, FileStack, LayoutDashboard, ListChecks, ListTodo, LogOut, Settings, User, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,6 @@ const navItems = [
   { href: '/pdf-forms', label: 'PDF帳票', icon: FileStack },
   { href: '/audit-logs', label: '監査ログ', icon: ClipboardList },
   { href: '/settings/templates', label: '書類テンプレート', icon: Settings },
-  { href: '/settings/coupons', label: 'クーポン管理', icon: Gift },
   { href: '/settings/notifications', label: '通知設定', icon: Bell },
   { href: '/settings/account', label: 'アカウント設定', icon: User },
 ]
