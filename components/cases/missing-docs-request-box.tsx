@@ -8,14 +8,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export function MissingDocsRequestBox({ caseData, documentChecks }: { caseData: Case; documentChecks: DocumentCheck[] }) {
-  const [includeAssignee, setIncludeAssignee] = useState(false)
+  const [includeCustomerContact, setIncludeCustomerContact] = useState(false)
   const missingDocs = useMemo(
     () => documentChecks.filter(doc => doc.required && !doc.obtained),
-    [documentChecks]
+    [documentChecks],
   )
   const generatedText = useMemo(
-    () => buildMessage(caseData, missingDocs, includeAssignee),
-    [caseData, missingDocs, includeAssignee]
+    () => buildMessage(caseData, missingDocs, includeCustomerContact),
+    [caseData, missingDocs, includeCustomerContact],
   )
   const [text, setText] = useState(generatedText)
 
@@ -36,8 +36,8 @@ export function MissingDocsRequestBox({ caseData, documentChecks }: { caseData: 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-base">不足資料の依頼文</CardTitle>
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <input type="checkbox" checked={includeAssignee} onChange={event => setIncludeAssignee(event.target.checked)} />
-            担当者名を宛名に入れる
+            <input type="checkbox" checked={includeCustomerContact} onChange={event => setIncludeCustomerContact(event.target.checked)} />
+            顧客管理の担当者名を宛名に入れる
           </label>
         </div>
       </CardHeader>
@@ -62,11 +62,11 @@ export function MissingDocsRequestBox({ caseData, documentChecks }: { caseData: 
   )
 }
 
-function buildMessage(caseData: Case, docs: DocumentCheck[], includeAssignee: boolean) {
+function buildMessage(caseData: Case, docs: DocumentCheck[], includeCustomerContact: boolean) {
   const companyName = caseData.customers?.company_name ?? 'お客様'
-  const assignee = caseData.assignee?.trim()
-  const recipient = includeAssignee && assignee
-    ? `${companyName}\n${assignee} 様`
+  const customerContact = caseData.customers?.contact_person?.trim()
+  const recipient = includeCustomerContact && customerContact
+    ? `${companyName}\n${customerContact} 様`
     : `${companyName} 御中`
 
   return [
@@ -74,7 +74,6 @@ function buildMessage(caseData: Case, docs: DocumentCheck[], includeAssignee: bo
     '',
     'いつもお世話になっております。',
     `${caseData.name}の手続きに必要な資料について、下記のご準備をお願いいたします。`,
-    assignee ? `担当: ${assignee}` : '',
     '',
     ...docs.map((doc, index) => `${index + 1}. ${doc.document_name}${doc.deficiency_note ? `（${doc.deficiency_note}）` : ''}`),
     '',
@@ -82,5 +81,5 @@ function buildMessage(caseData: Case, docs: DocumentCheck[], includeAssignee: bo
     '原本が必要な資料については、別途ご案内いたします。',
     '',
     'ご不明点がありましたらお知らせください。',
-  ].filter(Boolean).join('\n')
+  ].join('\n')
 }

@@ -41,7 +41,7 @@ export async function getCases(filters?: {
 
   let query = supabase
     .from('cases')
-    .select('*, customers(id, company_name)')
+    .select('*, customers(id, company_name, contact_person)')
     .eq('user_id', user.id)
 
   if (filters?.sortField === 'planned_submission_date') {
@@ -105,7 +105,7 @@ export async function getCase(id: string): Promise<Case | null> {
 
   const { data, error } = await supabase
     .from('cases')
-    .select('*, customers(id, company_name)')
+    .select('*, customers(id, company_name, contact_person)')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -129,7 +129,7 @@ export async function createCase(values: CaseFormValues): Promise<ActionResult<C
   const { data, error } = await supabase
     .from('cases')
     .insert({ ...normalizeCasePayload(values), user_id: user.id })
-    .select('*, customers(id, company_name)')
+    .select('*, customers(id, company_name, contact_person)')
     .single()
 
   if (error) return { success: false, error: error.message }
@@ -156,7 +156,7 @@ export async function updateCase(id: string, values: CaseFormValues): Promise<Ac
     .update(normalizeCasePayload(values))
     .eq('id', id)
     .eq('user_id', user.id)
-    .select('*, customers(id, company_name)')
+    .select('*, customers(id, company_name, contact_person)')
     .single()
 
   if (error) return { success: false, error: error.message }

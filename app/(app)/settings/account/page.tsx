@@ -6,17 +6,16 @@ import { AssigneeSettingsForm } from '@/components/settings/assignee-settings-fo
 import { getAssigneeSettings } from '@/lib/actions/assignee-settings'
 import { BillingSettingsForm } from '@/components/settings/billing-settings-form'
 import { getBillingDocuments, getBillingProfile } from '@/lib/actions/billing'
-import { getAllCaseEstimates } from '@/lib/actions/practical-extensions'
+import { CompanyProfileForm } from '@/components/settings/company-profile-form'
 
 export default async function AccountSettingsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  const [assignees, billingProfile, billingDocuments, estimates] = await Promise.all([
+  const [assignees, billingProfile, billingDocuments] = await Promise.all([
     getAssigneeSettings(),
     getBillingProfile(),
     getBillingDocuments(),
-    getAllCaseEstimates(),
   ])
 
   return (
@@ -25,7 +24,7 @@ export default async function AccountSettingsPage() {
 
       <Card>
         <CardHeader><CardTitle>ユーザー情報</CardTitle></CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <dl className="space-y-2">
             <div>
               <dt className="text-xs text-muted-foreground">メールアドレス</dt>
@@ -36,6 +35,7 @@ export default async function AccountSettingsPage() {
               <dd className="text-xs text-muted-foreground font-mono">{user.id}</dd>
             </div>
           </dl>
+          <CompanyProfileForm profile={billingProfile} />
         </CardContent>
       </Card>
 
@@ -49,7 +49,7 @@ export default async function AccountSettingsPage() {
       <Card>
         <CardHeader><CardTitle>サブスクリプション・請求情報</CardTitle></CardHeader>
         <CardContent>
-          <BillingSettingsForm profile={billingProfile} documents={billingDocuments} estimates={estimates} />
+          <BillingSettingsForm profile={billingProfile} documents={billingDocuments} />
         </CardContent>
       </Card>
 
