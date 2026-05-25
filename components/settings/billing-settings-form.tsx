@@ -25,8 +25,7 @@ export function BillingSettingsForm({
     const formData = new FormData()
     formData.set('plan_name', planName)
     formData.set('billing_cycle', cycle)
-    const coupon = document.querySelector<HTMLInputElement>('#coupon_code')?.value ?? ''
-    formData.set('coupon_code', coupon)
+    formData.set('coupon_code', document.querySelector<HTMLInputElement>('#coupon_code')?.value ?? '')
     startTransition(async () => {
       const result = await createCheckoutSession(formData)
       if (!result.success) {
@@ -76,17 +75,32 @@ export function BillingSettingsForm({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">プランを選択</h2>
-            <p className="text-sm text-muted-foreground">年額は11か月分。途中アップグレード可、ダウングレードは更新時に反映します。</p>
+            <p className="text-sm text-muted-foreground">
+              年額は11か月分の料金です。途中アップグレードは可能、ダウングレードは次回更新時に反映します。
+            </p>
           </div>
           <div className="inline-flex rounded-full border bg-muted p-1">
-            <button type="button" className={`rounded-full px-4 py-2 text-sm ${cycle === 'monthly' ? 'bg-white shadow-sm' : 'text-muted-foreground'}`} onClick={() => setCycle('monthly')}>月額</button>
-            <button type="button" className={`rounded-full px-4 py-2 text-sm ${cycle === 'yearly' ? 'bg-white shadow-sm' : 'text-muted-foreground'}`} onClick={() => setCycle('yearly')}>年額</button>
+            <button
+              type="button"
+              className={`rounded-full px-4 py-2 text-sm ${cycle === 'monthly' ? 'bg-white shadow-sm' : 'text-muted-foreground'}`}
+              onClick={() => setCycle('monthly')}
+            >
+              月額
+            </button>
+            <button
+              type="button"
+              className={`rounded-full px-4 py-2 text-sm ${cycle === 'yearly' ? 'bg-white shadow-sm' : 'text-muted-foreground'}`}
+              onClick={() => setCycle('yearly')}
+            >
+              年額
+            </button>
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 max-w-sm space-y-1">
           <Label htmlFor="coupon_code">クーポンコード</Label>
-          <Input id="coupon_code" className="mt-1 max-w-sm bg-white" placeholder="例: EARLY_START" />
+          <Input id="coupon_code" className="bg-white" placeholder="コードを入力" autoCapitalize="characters" />
+          <p className="text-xs text-muted-foreground">コードを入力して決済へ進むと、Googleシート上の条件を自動照会します。</p>
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -107,7 +121,7 @@ export function BillingSettingsForm({
                 </div>
                 <p className="mt-3 text-3xl font-bold">{formatYen(price)}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {cycle === 'yearly' ? `月あたり約${formatYen(monthlyEquivalent)}。年額は1か月分お得。` : '月ごとの契約'}
+                  {cycle === 'yearly' ? `月あたり約${formatYen(monthlyEquivalent)}。年額は1か月分お得です。` : '月ごとの契約です。'}
                 </p>
                 <ul className="mt-5 space-y-2 text-sm">
                   {plan.features.map(feature => (

@@ -36,7 +36,7 @@ export const plans: Record<PlanName, {
     aiDraftLimit: 0,
     caseLimit: 50,
     customerLimit: 200,
-    features: ['案件50件', '顧客200件', 'テンプレート適用', 'PDF/Word出力', '通知設定'],
+    features: ['案件50件', '顧客200件', 'テンプレート利用', 'PDF/Word出力', '通知設定'],
   },
   Pro: {
     name: 'Pro',
