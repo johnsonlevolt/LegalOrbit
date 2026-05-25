@@ -130,18 +130,15 @@ export function BillingSettingsForm({
               有効化
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            即時有効コードはここで無料利用を付与できます。課金登録時のみ有効なコードは、対象プランの決済へ進むと自動適用されます。
-          </p>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <div className="mt-5 grid items-stretch gap-4 md:grid-cols-3">
           {paidPlans.map(planName => {
             const plan = plans[planName]
-            const price = cycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice
-            const monthlyEquivalent = cycle === 'yearly' ? Math.round(plan.yearlyPrice / 12) : plan.monthlyPrice
+            const yearlyTotal = plan.yearlyPrice
+            const displayPrice = cycle === 'yearly' ? Math.round(plan.yearlyPrice / 12) : plan.monthlyPrice
             return (
-              <div key={plan.name} className={`relative rounded-xl border bg-white p-5 ${plan.recommended ? 'border-primary shadow-md' : ''}`}>
+              <div key={plan.name} className={`relative flex h-full flex-col rounded-xl border bg-white p-5 ${plan.recommended ? 'border-primary shadow-md' : ''}`}>
                 {plan.recommended && (
                   <div className="absolute -top-3 left-4 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
                     おすすめ
@@ -151,10 +148,13 @@ export function BillingSettingsForm({
                   <h3 className="text-xl font-semibold">{plan.name}</h3>
                   {plan.recommended && <Sparkles className="h-4 w-4 text-primary" />}
                 </div>
-                <p className="mt-3 text-3xl font-bold">{formatYen(price)}</p>
+                <p className="mt-3 text-3xl font-bold">{formatYen(displayPrice)}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {cycle === 'yearly' ? `月あたり約${formatYen(monthlyEquivalent)}。年額は1か月分お得です。` : '月ごとの契約です。'}
+                  {cycle === 'yearly' ? '実質月額です。' : '月ごとの契約です。'}
                 </p>
+                {cycle === 'yearly' && (
+                  <p className="mt-1 text-xs text-muted-foreground">年間総額 {formatYen(yearlyTotal)}</p>
+                )}
                 <ul className="mt-5 space-y-2 text-sm">
                   {plan.features.map(feature => (
                     <li key={feature} className="flex gap-2">
@@ -163,7 +163,7 @@ export function BillingSettingsForm({
                     </li>
                   ))}
                 </ul>
-                <Button className="mt-5 w-full" disabled={isPending} onClick={() => checkout(plan.name)}>
+                <Button className="mt-auto w-full" disabled={isPending} onClick={() => checkout(plan.name)}>
                   {plan.name === currentPlan ? '契約内容を確認' : `${plan.name}で開始`}
                 </Button>
               </div>
