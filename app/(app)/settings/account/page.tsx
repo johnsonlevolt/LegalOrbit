@@ -7,6 +7,7 @@ import { getAssigneeSettings } from '@/lib/actions/assignee-settings'
 import { BillingSettingsForm } from '@/components/settings/billing-settings-form'
 import { getBillingDocuments, getBillingProfile } from '@/lib/actions/billing'
 import { CompanyProfileForm } from '@/components/settings/company-profile-form'
+import { LegalPolicyCard } from '@/components/settings/legal-policy-card'
 
 export default async function AccountSettingsPage() {
   const supabase = await createClient()
@@ -59,6 +60,8 @@ export default async function AccountSettingsPage() {
           <PasswordChangeForm />
         </CardContent>
       </Card>
+
+      <LegalPolicyCard />
     </div>
   )
 }

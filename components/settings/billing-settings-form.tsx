@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { Check, ExternalLink, Sparkles } from 'lucide-react'
 import { activateCouponCode, createCheckoutSession, createCustomerPortalSession } from '@/lib/actions/billing'
 import { formatYen, paidPlans, plans, type BillingCycle, type PlanName } from '@/lib/billing/plans'
@@ -28,6 +28,7 @@ export function BillingSettingsForm({
     document.hosted_invoice_url ||
     document.receipt_url
   ))
+  const selectedPeriod = useMemo(() => getContractPeriod(cycle), [cycle])
 
   function couponFormData(planName = selectedPlan) {
     const formData = new FormData()
@@ -75,11 +76,10 @@ export function BillingSettingsForm({
             <p className="mt-1 text-sm text-muted-foreground">
               {profile?.billing_cycle === 'yearly' ? '年額契約' : '月額契約'} / {profile?.plan_status ?? '未契約'}
             </p>
-            {profile?.current_period_end && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                次回更新日: {new Date(profile.current_period_end).toLocaleDateString('ja-JP')}
-              </p>
-            )}
+            <div className="mt-2 grid gap-1 text-sm text-muted-foreground sm:grid-cols-2">
+              <p>開始日: {profile?.current_period_start ? new Date(profile.current_period_start).toLocaleDateString('ja-JP') : '-'}</p>
+              <p>終了日: {profile?.current_period_end ? new Date(profile.current_period_end).toLocaleDateString('ja-JP') : '-'}</p>
+            </div>
           </div>
           {profile?.stripe_customer_id && (
             <form action={createCustomerPortalSession}>
@@ -94,12 +94,23 @@ export function BillingSettingsForm({
           <div>
             <h2 className="text-lg font-semibold">プランを選択</h2>
             <p className="text-sm text-muted-foreground">
-              年額は11か月分の料金で12か月利用できます。途中アップグレードは可能、ダウングレードは次回更新時に反映します。
+              月額は契約日から1か月、年額は契約日から1年の契約です。新規契約に月末締めの日割りはありません。
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              アップグレードは即時反映し、残期間分の差額を日割り請求します。ダウングレードは次回更新日から反映します。
             </p>
           </div>
           <div className="inline-flex rounded-full border bg-muted p-1">
             <button type="button" className={`rounded-full px-4 py-2 text-sm ${cycle === 'monthly' ? 'bg-white shadow-sm' : 'text-muted-foreground'}`} onClick={() => setCycle('monthly')}>月額</button>
             <button type="button" className={`rounded-full px-4 py-2 text-sm ${cycle === 'yearly' ? 'bg-white shadow-sm' : 'text-muted-foreground'}`} onClick={() => setCycle('yearly')}>年額</button>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-md border bg-slate-50 p-3 text-sm">
+          <p className="font-medium">選択中の契約期間</p>
+          <div className="mt-1 grid gap-1 text-muted-foreground sm:grid-cols-2">
+            <p>開始日: {selectedPeriod.start}</p>
+            <p>終了日: {selectedPeriod.end}</p>
           </div>
         </div>
 
@@ -124,7 +135,7 @@ export function BillingSettingsForm({
                 </div>
                 <p className="mt-3 text-3xl font-bold">{formatYen(displayPrice)}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {cycle === 'yearly' ? `実質月額。年間総額 ${formatYen(plan.yearlyPrice)}` : '月ごとの契約です。'}
+                  {cycle === 'yearly' ? `実質月額。年間総額 ${formatYen(plan.yearlyPrice)}` : '契約日から1か月ごとの契約です。'}
                 </p>
                 {cycle === 'yearly' && <p className="mt-2 text-sm font-medium text-emerald-700">月額契約より {formatYen(yearlySavings(plan.name))} お得</p>}
                 <ul className="mt-5 space-y-2 text-sm">
@@ -178,4 +189,15 @@ export function BillingSettingsForm({
       </details>
     </div>
   )
+}
+
+function getContractPeriod(cycle: BillingCycle) {
+  const start = new Date()
+  const end = new Date(start)
+  if (cycle === 'yearly') end.setFullYear(end.getFullYear() + 1)
+  else end.setMonth(end.getMonth() + 1)
+  return {
+    start: start.toLocaleDateString('ja-JP'),
+    end: end.toLocaleDateString('ja-JP'),
+  }
 }
