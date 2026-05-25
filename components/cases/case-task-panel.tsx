@@ -15,18 +15,27 @@ export function CaseTaskPanel({ caseId, tasks, showCaseLink = false }: { caseId?
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [assigneeFilter, setAssigneeFilter] = useState('all')
+  const [customerFilter, setCustomerFilter] = useState('all')
   const [caseFilter, setCaseFilter] = useState('all')
 
   const assignees = useMemo(
     () => Array.from(new Set(tasks.map(task => task.cases?.assignee).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'ja')),
     [tasks],
   )
+
+  const customers = useMemo(
+    () => Array.from(new Set(tasks.map(task => task.cases?.customers?.company_name).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'ja')),
+    [tasks],
+  )
+
   const cases = useMemo(
     () => Array.from(new Map(tasks.map(task => [task.case_id, task.cases])).values()).filter(Boolean),
     [tasks],
   )
+
   const visibleTasks = tasks.filter(task => {
     if (assigneeFilter !== 'all' && task.cases?.assignee !== assigneeFilter) return false
+    if (customerFilter !== 'all' && task.cases?.customers?.company_name !== customerFilter) return false
     if (caseFilter !== 'all' && task.case_id !== caseFilter) return false
     return true
   })
@@ -80,7 +89,11 @@ export function CaseTaskPanel({ caseId, tasks, showCaseLink = false }: { caseId?
         )}
 
         {showCaseLink && tasks.length > 0 && (
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-2 md:grid-cols-3">
+            <select value={customerFilter} onChange={event => setCustomerFilter(event.target.value)} className="h-10 rounded-md border border-input bg-white px-3 py-2 text-sm">
+              <option value="all">すべての会社</option>
+              {customers.map(customer => <option key={customer} value={customer}>{customer}</option>)}
+            </select>
             <select value={assigneeFilter} onChange={event => setAssigneeFilter(event.target.value)} className="h-10 rounded-md border border-input bg-white px-3 py-2 text-sm">
               <option value="all">すべての担当者</option>
               {assignees.map(assignee => <option key={assignee} value={assignee}>{assignee}</option>)}
@@ -105,8 +118,8 @@ export function CaseTaskPanel({ caseId, tasks, showCaseLink = false }: { caseId?
                   <p className={`text-sm font-medium ${task.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>{task.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {task.due_date ? `期限: ${task.due_date}` : '期限なし'} / 優先度: {priorityLabel(task.priority)}
-                    {task.cases?.assignee ? ` / 担当: ${task.cases.assignee}` : ''}
                     {task.cases?.customers?.company_name ? ` / ${task.cases.customers.company_name}` : ''}
+                    {task.cases?.assignee ? ` / 担当: ${task.cases.assignee}` : ''}
                     {showCaseLink && task.cases && (
                       <>
                         {' / '}
