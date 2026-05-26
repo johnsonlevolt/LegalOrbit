@@ -18,9 +18,7 @@ export function PrintActions({ fileName }: PrintActionsProps) {
   }
 
   return (
-    <div className="mb-4 flex items-center justify-between gap-3 print:hidden">
-      <p className="text-sm text-slate-500">印刷設定で背景のグラフィックを有効にすると、画面に近い色で出力できます。</p>
-      <div className="flex shrink-0 items-center gap-2">
+    <div className="mb-4 flex justify-end gap-2 print:hidden">
         <Button type="button" variant="outline" onClick={() => printDocument(fileName)}>
           <Download className="mr-2 h-4 w-4" />
           PDF保存
@@ -29,7 +27,6 @@ export function PrintActions({ fileName }: PrintActionsProps) {
           <Printer className="mr-2 h-4 w-4" />
           印刷
         </Button>
-      </div>
     </div>
   )
 }

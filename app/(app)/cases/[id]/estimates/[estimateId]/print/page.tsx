@@ -32,7 +32,7 @@ export default async function EstimatePrintPage(props: Props) {
   const dueDate = estimate.due_date ? new Date(estimate.due_date).toLocaleDateString('ja-JP') : null
 
   return (
-    <main className="mx-auto max-w-[900px] bg-neutral-100 p-6 text-slate-950 print:bg-white print:p-0">
+    <main className="print-page mx-auto max-w-[900px] bg-neutral-100 p-6 text-slate-950 print:bg-white print:p-0">
       <style>
         {`
           @page { size: A4; margin: 10mm; }
@@ -43,14 +43,30 @@ export default async function EstimatePrintPage(props: Props) {
             }
             html, body {
               background: #ffffff !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            .print-page {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+            }
+            .print-sheet {
+              width: 190mm !important;
+              min-height: 277mm !important;
+              max-height: 277mm !important;
+              overflow: hidden !important;
+              box-shadow: none !important;
+              border: 0 !important;
+              padding: 9mm !important;
             }
           }
         `}
       </style>
       <PrintActions fileName={`見積書-${estimate.title}`} />
-      <section className="relative min-h-[1120px] overflow-hidden bg-white px-12 py-10 shadow-sm ring-1 ring-slate-200 print:min-h-screen print:shadow-none print:ring-0">
-        <header className="border-b-2 border-slate-900 pb-5">
-          <h1 className="text-center text-4xl font-bold tracking-[0.35em] text-slate-950">見積書</h1>
+      <section className="print-sheet relative min-h-[1120px] overflow-hidden bg-white px-12 py-10 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0">
+        <header className="border-b-2 border-[#070d1a] pb-5">
+          <h1 className="text-center text-4xl font-bold tracking-[0.35em] text-[#070d1a]">見積書</h1>
           <div className="mt-5 grid grid-cols-[1fr_auto] items-start gap-8 text-sm leading-7">
             <div className="space-y-1">
               <p><span className="inline-block w-20 text-slate-500">発行日</span>{issueDate}</p>
@@ -77,12 +93,12 @@ export default async function EstimatePrintPage(props: Props) {
 
         <div className="mt-10 grid grid-cols-[1fr_290px] items-end gap-10">
           <div>
-            <p className="inline-block border-b border-slate-900 pb-1 text-xl font-bold">
+            <p className="inline-block border-b border-[#070d1a] pb-1 text-xl font-bold">
               {estimate.recipient_name || caseData.customers?.company_name || 'お客様'} 御中
             </p>
             <p className="mt-6 text-sm leading-7">下記のとおり、お見積り申し上げます。</p>
           </div>
-          <div className="border-y-2 border-slate-900 py-4 text-right">
+          <div className="border-y-2 border-[#070d1a] py-4 text-right">
             <p className="text-sm font-semibold text-slate-500">お見積金額（税込）</p>
             <p className="mt-1 text-4xl font-bold tracking-tight">{formatYen(total)}</p>
           </div>
@@ -101,16 +117,16 @@ export default async function EstimatePrintPage(props: Props) {
             <col className="w-[12%]" />
           </colgroup>
           <thead>
-            <tr className="bg-slate-900 text-white">
-              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-left">名目</th>
-              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-center">区分</th>
-              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">数量</th>
-              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-center">単位</th>
-              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">単価</th>
-              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">税率</th>
-              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">税抜金額</th>
-              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">消費税</th>
-              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">税込金額</th>
+            <tr className="bg-[#070d1a] text-white">
+              <th className="whitespace-nowrap border border-[#070d1a] px-2 py-3 text-left">名目</th>
+              <th className="whitespace-nowrap border border-[#070d1a] px-2 py-3 text-center">区分</th>
+              <th className="whitespace-nowrap border border-[#070d1a] px-2 py-3 text-right">数量</th>
+              <th className="whitespace-nowrap border border-[#070d1a] px-2 py-3 text-center">単位</th>
+              <th className="whitespace-nowrap border border-[#070d1a] px-2 py-3 text-right">単価</th>
+              <th className="whitespace-nowrap border border-[#070d1a] px-2 py-3 text-right">税率</th>
+              <th className="whitespace-nowrap border border-[#070d1a] px-2 py-3 text-right">税抜金額</th>
+              <th className="whitespace-nowrap border border-[#070d1a] px-2 py-3 text-right">消費税</th>
+              <th className="whitespace-nowrap border border-[#070d1a] px-2 py-3 text-right">税込金額</th>
             </tr>
           </thead>
           <tbody>
@@ -172,7 +188,7 @@ export default async function EstimatePrintPage(props: Props) {
         <img
           src={legalOrbitLogo.src}
           alt="Legal Orbit"
-          className="absolute bottom-9 right-12 h-auto w-[170px] opacity-80"
+          className="absolute bottom-8 right-10 h-auto w-[155px] opacity-90 print:bottom-[9mm] print:right-[9mm]"
         />
       </section>
     </main>
