@@ -57,6 +57,37 @@ export async function createCaseTask(caseId: string, formData: FormData): Promis
   return { success: true, data: data as CaseTask }
 }
 
+export async function createCaseTaskFromMemo(caseId: string, memoId: string): Promise<ActionResult<CaseTask>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+
+  const { data: memo, error: memoError } = await supabase
+    .from('case_communications')
+    .select('id, case_id, subject, body')
+    .eq('id', memoId)
+    .eq('case_id', caseId)
+    .eq('user_id', user.id)
+    .eq('channel', 'memo')
+    .single()
+  if (memoError || !memo) return { success: false, error: 'メモが見つかりません。' }
+
+  const title = String(memo.subject ?? '').trim() || String(memo.body ?? '').trim().slice(0, 40) || 'メモ確認'
+  const { data, error } = await supabase.from('case_tasks').insert({
+    user_id: user.id,
+    case_id: caseId,
+    title,
+    description: String(memo.body ?? '').trim() || null,
+    priority: 'normal' as CaseTaskPriority,
+    due_date: null,
+  }).select().single()
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath(`/cases/${caseId}`)
+  revalidatePath('/tasks')
+  return { success: true, data: data as CaseTask }
+}
+
 export async function updateCaseTaskStatus(id: string, status: CaseTaskStatus): Promise<ActionResult<CaseTask>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -354,6 +354,9 @@ export interface CaseCommunication {
   body: string | null
   contacted_at: string
   created_at: string
+  cases?: Pick<Case, 'id' | 'name' | 'assignee'> & {
+    customers?: Pick<Customer, 'company_name'> | null
+  }
 }
 
 export interface AgencyRule {

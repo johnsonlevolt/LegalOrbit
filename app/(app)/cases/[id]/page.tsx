@@ -17,7 +17,7 @@ import { getCaseDeadlines } from '@/lib/actions/deadlines'
 import { getBillingProfile } from '@/lib/actions/billing'
 import { CaseDetailTabs } from '@/components/cases/case-detail-tabs'
 import { CaseNextActions } from '@/components/cases/case-next-actions'
-import { CaseTaskPanel } from '@/components/cases/case-task-panel'
+import { CaseTaskMemoSwitch } from '@/components/cases/case-task-memo-switch'
 import { GeneratePdfForm } from '@/components/pdf-forms/generate-pdf-form'
 import { CopyCaseButton } from '@/components/cases/copy-case-button'
 import { CorrectionsPanel } from '@/components/cases/corrections-panel'
@@ -27,6 +27,7 @@ import { PracticalPanels } from '@/components/cases/practical-panels'
 import {
   getCaseCommunications,
   getCaseEstimates,
+  getCaseMemos,
   getCaseReviews,
   getUploadLinks,
 } from '@/lib/actions/practical-extensions'
@@ -69,6 +70,7 @@ export default async function CaseDetailPage(props: Props) {
     caseFiles,
     templates,
     tasks,
+    memos,
     pdfTemplates,
     pdfOutputs,
     corrections,
@@ -88,6 +90,7 @@ export default async function CaseDetailPage(props: Props) {
     getCaseFiles(params.id),
     getDocumentTemplates(),
     getCaseTasks(params.id),
+    getCaseMemos(params.id),
     getPdfFormTemplates(),
     getPdfFormOutputs(params.id),
     getCaseCorrections(params.id),
@@ -140,7 +143,7 @@ export default async function CaseDetailPage(props: Props) {
         documentChecks={documentChecks}
         documentDrafts={documentDrafts}
       />
-      <CaseTaskPanel caseId={params.id} tasks={tasks} />
+      <CaseTaskMemoSwitch caseId={params.id} customerId={caseData.customer_id} tasks={tasks} memos={memos} />
       <div className="grid gap-4 xl:grid-cols-3">
         <MissingDocsRequestBox caseData={caseData} documentChecks={documentChecks} />
         <CorrectionsPanel caseId={params.id} corrections={corrections} />

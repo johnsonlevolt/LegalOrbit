@@ -13,7 +13,7 @@ const navItems = [
   { href: '/workbench', label: '今日やること', icon: ListChecks },
   { href: '/customers', label: '顧客管理', icon: Users },
   { href: '/cases', label: '案件管理', icon: Briefcase },
-  { href: '/tasks', label: 'タスク', icon: ListTodo },
+  { href: '/tasks', label: 'タスク・メモ', icon: ListTodo },
   { href: '/agencies', label: '提出先マスタ', icon: Building2 },
   { href: '/billing-documents', label: '請求書・見積書', icon: ReceiptText },
   { href: '/pdf-forms', label: 'PDF帳票', icon: FileStack },

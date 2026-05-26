@@ -118,6 +118,48 @@ export async function getCaseCommunications(caseId: string): Promise<CaseCommuni
   return (data ?? []) as CaseCommunication[]
 }
 
+export async function getCaseMemos(caseId?: string): Promise<CaseCommunication[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  let query = supabase
+    .from('case_communications')
+    .select('*, cases(id, name, assignee, customers(company_name))')
+    .eq('user_id', user.id)
+    .eq('channel', 'memo')
+    .order('contacted_at', { ascending: false })
+  if (caseId) query = query.eq('case_id', caseId)
+  const { data, error } = await query
+  if (error) {
+    if (error.message.includes('case_communications') && error.message.includes('schema cache')) return []
+    throw new Error(error.message)
+  }
+  return (data ?? []) as CaseCommunication[]
+}
+
+export async function createCaseMemo(caseId: string, customerId: string | null, formData: FormData): Promise<ActionResult<CaseCommunication>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: '未認証です。' }
+  const body = String(formData.get('body') ?? '').trim()
+  if (!body) return { success: false, error: 'メモを入力してください。' }
+  const subject = String(formData.get('subject') ?? '').trim() || body.slice(0, 40)
+  const { data, error } = await supabase.from('case_communications').insert({
+    user_id: user.id,
+    case_id: caseId,
+    customer_id: customerId,
+    channel: 'memo',
+    direction: 'outbound',
+    subject,
+    body,
+    contacted_at: new Date().toISOString(),
+  }).select().single()
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/cases/${caseId}`)
+  revalidatePath('/tasks')
+  return { success: true, data: data as CaseCommunication }
+}
+
 export async function createCaseCommunication(caseId: string, customerId: string | null, formData: FormData): Promise<ActionResult<CaseCommunication>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
