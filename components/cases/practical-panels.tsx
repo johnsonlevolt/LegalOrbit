@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Trash2 } from 'lucide-react'
 
 export function PracticalPanels({
@@ -48,13 +49,32 @@ export function PracticalPanels({
   billingProfile?: BillingProfile | null
 }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
-      <EstimatePanelV2 caseId={caseId} customerName={customerName} estimates={estimates} billingProfile={billingProfile} />
-      <UploadLinkPanel caseId={caseId} links={uploadLinks} />
-      <FileClassificationPanel files={files} documentChecks={documentChecks} />
-      <ReviewPanel caseId={caseId} reviews={reviews} />
-      <CommunicationPanel caseId={caseId} customerId={customerId} communications={communications} />
-    </div>
+    <Tabs defaultValue="billing" className="space-y-3">
+      <div className="overflow-x-auto">
+        <TabsList className="inline-flex w-max min-w-full justify-start">
+          <TabsTrigger value="billing">見積・請求</TabsTrigger>
+          <TabsTrigger value="upload">資料アップロード</TabsTrigger>
+          <TabsTrigger value="classification">資料分類</TabsTrigger>
+          <TabsTrigger value="review">レビュー</TabsTrigger>
+          <TabsTrigger value="communication">連絡履歴</TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="billing">
+        <EstimatePanelV2 caseId={caseId} customerName={customerName} estimates={estimates} billingProfile={billingProfile} />
+      </TabsContent>
+      <TabsContent value="upload">
+        <UploadLinkPanel caseId={caseId} links={uploadLinks} />
+      </TabsContent>
+      <TabsContent value="classification">
+        <FileClassificationPanel files={files} documentChecks={documentChecks} />
+      </TabsContent>
+      <TabsContent value="review">
+        <ReviewPanel caseId={caseId} reviews={reviews} />
+      </TabsContent>
+      <TabsContent value="communication">
+        <CommunicationPanel caseId={caseId} customerId={customerId} communications={communications} />
+      </TabsContent>
+    </Tabs>
   )
 }
 
