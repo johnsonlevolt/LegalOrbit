@@ -4,7 +4,7 @@ import { getCase } from '@/lib/actions/cases'
 import { getBillingProfile, getSealImageUrl } from '@/lib/actions/billing'
 import { formatYen } from '@/lib/billing/plans'
 import type { CaseEstimate, EstimateLineItem, TaxSummaryLine } from '@/types/database'
-import legalOrbitLogo from '../../../../../../../icon/legal-orbit-logo-horizontal-dark-transparent.png'
+import legalOrbitLogo from '../../../../../../../icon/新しいフォルダー/ChatGPT Image 2026年5月25日 20_30_35.png'
 
 interface Props {
   params: Promise<{ id: string; estimateId: string }>
@@ -73,72 +73,72 @@ export default async function EstimatePrintPage(props: Props) {
           </div>
         </div>
 
-        <table className="mt-10 w-full table-fixed border-collapse text-[13px]">
+        <table className="mt-10 w-full table-fixed border-collapse text-[12px]">
           <colgroup>
-            <col className="w-[27%]" />
-            <col className="w-[8%]" />
+            <col className="w-[25%]" />
             <col className="w-[7%]" />
-            <col className="w-[7%]" />
-            <col className="w-[12%]" />
+            <col className="w-[6%]" />
+            <col className="w-[6%]" />
+            <col className="w-[13%]" />
             <col className="w-[8%]" />
-            <col className="w-[12%]" />
-            <col className="w-[9%]" />
+            <col className="w-[13%]" />
             <col className="w-[10%]" />
+            <col className="w-[12%]" />
           </colgroup>
           <thead>
             <tr className="bg-slate-900 text-white">
-              <th className="border border-slate-900 px-3 py-3 text-left">名目</th>
-              <th className="border border-slate-900 px-2 py-3 text-center">区分</th>
-              <th className="border border-slate-900 px-2 py-3 text-right">数量</th>
-              <th className="border border-slate-900 px-2 py-3 text-center">単位</th>
-              <th className="border border-slate-900 px-3 py-3 text-right">単価</th>
-              <th className="border border-slate-900 px-2 py-3 text-right">税率</th>
-              <th className="border border-slate-900 px-3 py-3 text-right">税抜金額</th>
-              <th className="border border-slate-900 px-3 py-3 text-right">消費税</th>
-              <th className="border border-slate-900 px-3 py-3 text-right">税込金額</th>
+              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-left">名目</th>
+              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-center">区分</th>
+              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">数量</th>
+              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-center">単位</th>
+              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">単価</th>
+              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">税率</th>
+              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">税抜金額</th>
+              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">消費税</th>
+              <th className="whitespace-nowrap border border-slate-900 px-2 py-3 text-right">税込金額</th>
             </tr>
           </thead>
           <tbody>
             {lineItems.map((item, index) => (
               <tr key={`${item.description}-${index}`} className="align-top">
-                <td className="border border-slate-300 px-3 py-3 leading-6">{item.description}</td>
-                <td className="border border-slate-300 px-2 py-3 text-center">{item.category === 'fee' ? '報酬' : '実費'}</td>
-                <td className="border border-slate-300 px-2 py-3 text-right tabular-nums">{item.quantity}</td>
-                <td className="border border-slate-300 px-2 py-3 text-center">{item.unit ?? '式'}</td>
-                <td className="border border-slate-300 px-3 py-3 text-right tabular-nums">{formatYen(item.unit_price)}</td>
-                <td className="border border-slate-300 px-2 py-3 text-right">{item.tax_rate === 0 ? '非課税' : `${item.tax_rate}%`}</td>
-                <td className="border border-slate-300 px-3 py-3 text-right tabular-nums">{formatYen(item.net_amount)}</td>
-                <td className="border border-slate-300 px-3 py-3 text-right tabular-nums">{formatYen(item.tax_amount)}</td>
-                <td className="border border-slate-300 px-3 py-3 text-right tabular-nums font-semibold">{formatYen(item.total_amount)}</td>
+                <td className="whitespace-nowrap border border-slate-300 px-2 py-3 leading-6">{item.description}</td>
+                <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-center">{item.category === 'fee' ? '報酬' : '実費'}</td>
+                <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-right tabular-nums">{item.quantity}</td>
+                <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-center">{item.unit ?? '式'}</td>
+                <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-right tabular-nums">{formatYen(item.unit_price)}</td>
+                <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-right">{item.tax_rate === 0 ? '非課税' : `${item.tax_rate}%`}</td>
+                <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-right tabular-nums">{formatYen(item.net_amount)}</td>
+                <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-right tabular-nums">{formatYen(item.tax_amount)}</td>
+                <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-right tabular-nums font-semibold">{formatYen(item.total_amount)}</td>
               </tr>
             ))}
             <tr className="bg-slate-50 font-bold">
-              <td className="border border-slate-300 px-3 py-3 text-right" colSpan={6}>合計</td>
-              <td className="border border-slate-300 px-3 py-3 text-right tabular-nums">{formatYen(subtotal)}</td>
-              <td className="border border-slate-300 px-3 py-3 text-right tabular-nums">{formatYen(taxTotal)}</td>
-              <td className="border border-slate-300 px-3 py-3 text-right tabular-nums">{formatYen(total)}</td>
+              <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-right" colSpan={6}>合計</td>
+              <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-right tabular-nums">{formatYen(subtotal)}</td>
+              <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-right tabular-nums">{formatYen(taxTotal)}</td>
+              <td className="whitespace-nowrap border border-slate-300 px-2 py-3 text-right tabular-nums">{formatYen(total)}</td>
             </tr>
           </tbody>
         </table>
 
         <div className="mt-7 grid grid-cols-[1fr_280px] items-start gap-8">
           <div>
-            <table className="w-full max-w-xl border-collapse text-[13px]">
+            <table className="w-full max-w-xl border-collapse text-[12px]">
               <thead>
                 <tr className="bg-slate-100">
-                  <th className="border border-slate-300 px-3 py-2 text-left">税率区分</th>
-                  <th className="border border-slate-300 px-3 py-2 text-right">対象額（税抜）</th>
-                  <th className="border border-slate-300 px-3 py-2 text-right">消費税額</th>
-                  <th className="border border-slate-300 px-3 py-2 text-right">対象額（税込）</th>
+                  <th className="whitespace-nowrap border border-slate-300 px-3 py-2 text-left">税率区分</th>
+                  <th className="whitespace-nowrap border border-slate-300 px-3 py-2 text-right">対象額（税抜）</th>
+                  <th className="whitespace-nowrap border border-slate-300 px-3 py-2 text-right">消費税額</th>
+                  <th className="whitespace-nowrap border border-slate-300 px-3 py-2 text-right">対象額（税込）</th>
                 </tr>
               </thead>
               <tbody>
                 {taxSummary.map(row => (
                   <tr key={row.tax_rate}>
-                    <td className="border border-slate-300 px-3 py-2">{row.tax_rate === 0 ? '非課税' : `${row.tax_rate}%対象`}</td>
-                    <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{formatYen(row.net_amount)}</td>
-                    <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{formatYen(row.tax_amount)}</td>
-                    <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{formatYen(row.total_amount)}</td>
+                    <td className="whitespace-nowrap border border-slate-300 px-3 py-2">{row.tax_rate === 0 ? '非課税' : `${row.tax_rate}%対象`}</td>
+                    <td className="whitespace-nowrap border border-slate-300 px-3 py-2 text-right tabular-nums">{formatYen(row.net_amount)}</td>
+                    <td className="whitespace-nowrap border border-slate-300 px-3 py-2 text-right tabular-nums">{formatYen(row.tax_amount)}</td>
+                    <td className="whitespace-nowrap border border-slate-300 px-3 py-2 text-right tabular-nums">{formatYen(row.total_amount)}</td>
                   </tr>
                 ))}
               </tbody>
