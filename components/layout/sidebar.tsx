@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, Briefcase, Building2, ClipboardList, FileStack, LayoutDashboard, ListChecks, ListTodo, LogOut, Settings, User, Users, X } from 'lucide-react'
+import { Bell, Briefcase, Building2, ClipboardList, FileStack, LayoutDashboard, ListChecks, ListTodo, LogOut, ReceiptText, Settings, User, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ const navItems = [
   { href: '/cases', label: '案件管理', icon: Briefcase },
   { href: '/tasks', label: 'タスク', icon: ListTodo },
   { href: '/agencies', label: '提出先マスタ', icon: Building2 },
+  { href: '/billing-documents', label: '請求書・見積書', icon: ReceiptText },
   { href: '/pdf-forms', label: 'PDF帳票', icon: FileStack },
   { href: '/audit-logs', label: '監査ログ', icon: ClipboardList },
   { href: '/settings/templates', label: '書類テンプレート', icon: Settings },

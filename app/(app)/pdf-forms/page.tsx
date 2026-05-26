@@ -1,17 +1,12 @@
 import { getPdfFormOutputs, getPdfFormTemplates } from '@/lib/actions/pdf-forms'
-import { getBillingDocuments } from '@/lib/actions/billing'
-import { getAllCaseEstimates } from '@/lib/actions/practical-extensions'
 import { PdfFormTemplateForm } from '@/components/pdf-forms/pdf-form-template-form'
-import { BillingLedgerPanel } from '@/components/billing/billing-ledger-panel'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 export default async function PdfFormsPage() {
-  const [templates, outputs, billingDocuments, estimates] = await Promise.all([
+  const [templates, outputs] = await Promise.all([
     getPdfFormTemplates(),
     getPdfFormOutputs(),
-    getBillingDocuments(),
-    getAllCaseEstimates(),
   ])
 
   return (
@@ -19,7 +14,7 @@ export default async function PdfFormsPage() {
       <div>
         <h1 className="text-2xl font-bold">PDF帳票</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          正式様式PDFへの転記テンプレートと、見積書・請求書をまとめて確認します。
+          官公署などの正式様式PDFへ、案件データを転記するテンプレートを管理します。
         </p>
       </div>
 
@@ -96,15 +91,6 @@ export default async function PdfFormsPage() {
               ))}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">見積書・請求書</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <BillingLedgerPanel documents={billingDocuments} estimates={estimates} />
         </CardContent>
       </Card>
     </div>
