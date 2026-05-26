@@ -3,7 +3,7 @@ import { PrintActions } from '@/components/print/print-actions'
 import { getBillingDocument, getBillingProfile, getSealImageUrl } from '@/lib/actions/billing'
 import { formatYen } from '@/lib/billing/plans'
 import type { BillingDocument, EstimateLineItem, TaxSummaryLine } from '@/types/database'
-import legalOrbitLogo from '../../../../../../../icon/新しいフォルダー/ChatGPT Image 2026年5月25日 20_30_35.png'
+import legalOrbitLogo from '../../../../../../../icon/新しいフォルダー/ChatGPT Image 2026年5月25日 20_30_43.png'
 
 interface Props {
   params: Promise<{ id: string }>
