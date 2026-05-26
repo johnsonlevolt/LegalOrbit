@@ -37,3 +37,11 @@ Thumbs.db
 .cache/
 
 .vercel
+
+# generated/release artifacts kept outside source control
+docs/release-assets/*.xlsx
+icon/*.ico
+icon/*.png
+icon/**/*.png
+!icon/新しいフォルダー/
+!icon/新しいフォルダー/ChatGPT Image 2026年5月25日 20_30_43.png

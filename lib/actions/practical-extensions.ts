@@ -356,16 +356,20 @@ export async function issueInvoiceFromEstimate(estimateId: string, formData?: Fo
 }
 
 export async function markEstimateAccepted(estimateId: string): Promise<ActionResult<CaseEstimate>> {
-  return updateEstimateAcceptance(estimateId, true)
+  return updateEstimateStatus(estimateId, 'accepted')
 }
 
 export async function updateEstimateAcceptance(estimateId: string, accepted: boolean): Promise<ActionResult<CaseEstimate>> {
+  return updateEstimateStatus(estimateId, accepted ? 'accepted' : 'draft')
+}
+
+export async function updateEstimateStatus(estimateId: string, status: 'draft' | 'pending' | 'accepted' | 'lost'): Promise<ActionResult<CaseEstimate>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: '未認証です。' }
   const { data, error } = await supabase.from('case_estimates').update({
-    status: accepted ? 'accepted' : 'draft',
-    accepted_at: accepted ? new Date().toISOString() : null,
+    status,
+    accepted_at: status === 'accepted' ? new Date().toISOString() : null,
   }).eq('id', estimateId).eq('user_id', user.id).select().single()
   if (error) return { success: false, error: error.message }
   revalidatePath(`/cases/${data.case_id}`)

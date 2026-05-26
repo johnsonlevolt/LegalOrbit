@@ -13,7 +13,7 @@ import {
   issueInvoiceFromEstimate,
   updateCaseEstimate,
   updateCaseReview,
-  updateEstimateAcceptance,
+  updateEstimateStatus,
 } from '@/lib/actions/practical-extensions'
 import { formatYen } from '@/lib/billing/plans'
 import { toast } from '@/hooks/use-toast'
@@ -349,9 +349,9 @@ function EstimatePanelV2({
     })
   }
 
-  function setAcceptance(id: string, accepted: boolean) {
+  function setEstimateStatus(id: string, status: 'draft' | 'pending' | 'accepted' | 'lost') {
     startTransition(async () => {
-      const result = await updateEstimateAcceptance(id, accepted)
+      const result = await updateEstimateStatus(id, status)
       if (!result.success) toast({ title: '受注状態を更新できませんでした', description: result.error, variant: 'destructive' })
       else router.refresh()
     })
@@ -561,8 +561,8 @@ function EstimatePanelV2({
                   <Button size="sm" variant="outline" onClick={() => editEstimate(item)} disabled={isPending}>編集</Button>
                   <Button asChild size="sm" variant="outline"><Link href={`/cases/${item.case_id}/estimates/${item.id}/print`}>見積書PDF</Link></Button>
                   <Select
-                    value={item.status === 'accepted' ? 'accepted' : 'draft'}
-                    onValueChange={value => setAcceptance(item.id, value === 'accepted')}
+                    value={estimateStatusValue(item.status)}
+                    onValueChange={value => setEstimateStatus(item.id, value as 'draft' | 'pending' | 'accepted' | 'lost')}
                     disabled={isPending || item.status === 'invoiced'}
                   >
                     <SelectTrigger className="h-9 w-28 bg-white">
@@ -570,7 +570,9 @@ function EstimatePanelV2({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="draft">未受注</SelectItem>
+                      <SelectItem value="pending">保留</SelectItem>
                       <SelectItem value="accepted">受注済み</SelectItem>
+                      <SelectItem value="lost">失注</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button size="sm" onClick={() => invoice(item.id)} disabled={isPending}>請求書を作成して開く</Button>
@@ -639,9 +641,9 @@ function EstimatePanel({
       else router.refresh()
     })
   }
-  function setAcceptance(id: string, accepted: boolean) {
+  function setEstimateStatus(id: string, status: 'draft' | 'pending' | 'accepted' | 'lost') {
     startTransition(async () => {
-      const result = await updateEstimateAcceptance(id, accepted)
+      const result = await updateEstimateStatus(id, status)
       if (!result.success) toast({ title: '受注状態を更新できませんでした', description: result.error, variant: 'destructive' })
       else router.refresh()
     })
@@ -850,8 +852,8 @@ function EstimatePanel({
                     <Link href={`/cases/${item.case_id}/estimates/${item.id}/print`}>見積書PDF</Link>
                   </Button>
                   <Select
-                    value={item.status === 'accepted' ? 'accepted' : 'draft'}
-                    onValueChange={value => setAcceptance(item.id, value === 'accepted')}
+                    value={estimateStatusValue(item.status)}
+                    onValueChange={value => setEstimateStatus(item.id, value as 'draft' | 'pending' | 'accepted' | 'lost')}
                     disabled={isPending || item.status === 'invoiced'}
                   >
                     <SelectTrigger className="h-9 w-28 bg-white">
@@ -859,7 +861,9 @@ function EstimatePanel({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="draft">未受注</SelectItem>
+                      <SelectItem value="pending">保留</SelectItem>
                       <SelectItem value="accepted">受注済み</SelectItem>
+                      <SelectItem value="lost">失注</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button size="sm" onClick={() => invoice(item.id)} disabled={isPending}>
@@ -882,11 +886,18 @@ function EstimatePanel({
 
 function estimateStatusLabel(status: string) {
   const labels: Record<string, string> = {
-    draft: '下書き',
+    draft: '未受注',
+    pending: '保留',
     accepted: '受注済み',
+    lost: '失注',
     invoiced: '請求書作成済み',
   }
   return labels[status] ?? status
+}
+
+function estimateStatusValue(status: string): 'draft' | 'pending' | 'accepted' | 'lost' {
+  if (status === 'pending' || status === 'accepted' || status === 'lost') return status
+  return 'draft'
 }
 
 function calculateEstimateLines(lines: EstimateInputLine[], taxInclusion: 'exclusive' | 'inclusive') {

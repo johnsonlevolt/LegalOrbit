@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import { notFound } from 'next/navigation'
 import { PrintActions } from '@/components/print/print-actions'
 import { getCaseEstimates } from '@/lib/actions/practical-extensions'
