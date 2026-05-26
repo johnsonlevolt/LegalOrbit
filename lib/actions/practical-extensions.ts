@@ -124,7 +124,7 @@ export async function getCaseMemos(caseId?: string): Promise<CaseCommunication[]
   if (!user) return []
   let query = supabase
     .from('case_communications')
-    .select('*, cases(id, name, assignee, customers(company_name))')
+    .select('*, cases(id, name, assignee, customers(company_name, contact_person))')
     .eq('user_id', user.id)
     .eq('channel', 'memo')
     .order('contacted_at', { ascending: false })
@@ -356,15 +356,20 @@ export async function issueInvoiceFromEstimate(estimateId: string, formData?: Fo
 }
 
 export async function markEstimateAccepted(estimateId: string): Promise<ActionResult<CaseEstimate>> {
+  return updateEstimateAcceptance(estimateId, true)
+}
+
+export async function updateEstimateAcceptance(estimateId: string, accepted: boolean): Promise<ActionResult<CaseEstimate>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: '未認証です。' }
   const { data, error } = await supabase.from('case_estimates').update({
-    status: 'accepted',
-    accepted_at: new Date().toISOString(),
+    status: accepted ? 'accepted' : 'draft',
+    accepted_at: accepted ? new Date().toISOString() : null,
   }).eq('id', estimateId).eq('user_id', user.id).select().single()
   if (error) return { success: false, error: error.message }
   revalidatePath(`/cases/${data.case_id}`)
+  revalidatePath('/billing-documents')
   return { success: true, data: data as CaseEstimate }
 }
 

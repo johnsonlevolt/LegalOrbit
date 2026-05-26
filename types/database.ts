@@ -355,7 +355,7 @@ export interface CaseCommunication {
   contacted_at: string
   created_at: string
   cases?: Pick<Case, 'id' | 'name' | 'assignee'> & {
-    customers?: Pick<Customer, 'company_name'> | null
+    customers?: Pick<Customer, 'company_name' | 'contact_person'> | null
   }
 }
 

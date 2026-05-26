@@ -11,9 +11,9 @@ import {
   createCaseReview,
   createUploadLink,
   issueInvoiceFromEstimate,
-  markEstimateAccepted,
   updateCaseEstimate,
   updateCaseReview,
+  updateEstimateAcceptance,
 } from '@/lib/actions/practical-extensions'
 import { formatYen } from '@/lib/billing/plans'
 import { toast } from '@/hooks/use-toast'
@@ -349,10 +349,10 @@ function EstimatePanelV2({
     })
   }
 
-  function accept(id: string) {
+  function setAcceptance(id: string, accepted: boolean) {
     startTransition(async () => {
-      const result = await markEstimateAccepted(id)
-      if (!result.success) toast({ title: '見積を承認済みにできませんでした', description: result.error, variant: 'destructive' })
+      const result = await updateEstimateAcceptance(id, accepted)
+      if (!result.success) toast({ title: '受注状態を更新できませんでした', description: result.error, variant: 'destructive' })
       else router.refresh()
     })
   }
@@ -560,7 +560,19 @@ function EstimatePanelV2({
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={() => editEstimate(item)} disabled={isPending}>編集</Button>
                   <Button asChild size="sm" variant="outline"><Link href={`/cases/${item.case_id}/estimates/${item.id}/print`}>見積書PDF</Link></Button>
-                  <Button size="sm" variant="outline" onClick={() => accept(item.id)} disabled={isPending}>受注済みにする</Button>
+                  <Select
+                    value={item.status === 'accepted' ? 'accepted' : 'draft'}
+                    onValueChange={value => setAcceptance(item.id, value === 'accepted')}
+                    disabled={isPending || item.status === 'invoiced'}
+                  >
+                    <SelectTrigger className="h-9 w-28 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">未受注</SelectItem>
+                      <SelectItem value="accepted">受注済み</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button size="sm" onClick={() => invoice(item.id)} disabled={isPending}>請求書を作成して開く</Button>
                 </div>
               </div>
@@ -627,10 +639,10 @@ function EstimatePanel({
       else router.refresh()
     })
   }
-  function accept(id: string) {
+  function setAcceptance(id: string, accepted: boolean) {
     startTransition(async () => {
-      const result = await markEstimateAccepted(id)
-      if (!result.success) toast({ title: '見積を承認済みにできませんでした', description: result.error, variant: 'destructive' })
+      const result = await updateEstimateAcceptance(id, accepted)
+      if (!result.success) toast({ title: '受注状態を更新できませんでした', description: result.error, variant: 'destructive' })
       else router.refresh()
     })
   }
@@ -837,9 +849,19 @@ function EstimatePanel({
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/cases/${item.case_id}/estimates/${item.id}/print`}>見積書PDF</Link>
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => accept(item.id)} disabled={isPending}>
-                    受注済みにする
-                  </Button>
+                  <Select
+                    value={item.status === 'accepted' ? 'accepted' : 'draft'}
+                    onValueChange={value => setAcceptance(item.id, value === 'accepted')}
+                    disabled={isPending || item.status === 'invoiced'}
+                  >
+                    <SelectTrigger className="h-9 w-28 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">未受注</SelectItem>
+                      <SelectItem value="accepted">受注済み</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button size="sm" onClick={() => invoice(item.id)} disabled={isPending}>
                     請求書を作成して開く
                   </Button>
