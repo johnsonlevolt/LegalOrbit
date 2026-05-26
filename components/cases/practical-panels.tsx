@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Trash2 } from 'lucide-react'
 
 export function PracticalPanels({
   caseId,
@@ -411,18 +412,19 @@ function EstimatePanelV2({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 p-3">
-              <div className="hidden gap-2 px-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[2fr_6rem_5rem_5rem_8rem_6rem_7rem_auto]">
-                <span>名目</span><span>区分</span><span>数量</span><span>単位</span><span>単価</span><span>税率</span><span className="text-right">金額</span><span />
-              </div>
-              {lines.map((line, index) => (
-                <div key={index} className="grid gap-2 rounded-md border bg-slate-50 p-2 md:grid-cols-[2fr_6rem_5rem_5rem_8rem_6rem_7rem_auto]">
+            <div className="overflow-x-auto p-3">
+              <div className="min-w-[760px] space-y-2">
+                <div className="grid grid-cols-[minmax(170px,1fr)_88px_72px_72px_128px_96px_104px_40px] gap-2 px-2 text-xs font-medium text-muted-foreground">
+                  <span>名目</span><span>区分</span><span>数量</span><span>単位</span><span>単価</span><span>税率</span><span className="text-right">金額</span><span />
+                </div>
+                {lines.map((line, index) => (
+                  <div key={index} className="grid grid-cols-[minmax(170px,1fr)_88px_72px_72px_128px_96px_104px_40px] items-center gap-2 rounded-md border bg-slate-50 p-2">
                   <label className="space-y-1 md:space-y-0">
-                    <span className="text-xs font-medium text-muted-foreground md:hidden">名目</span>
+                    <span className="sr-only">名目</span>
                     <Input className="bg-white" value={line.description} onChange={event => updateLine(index, { description: event.target.value })} />
                   </label>
                   <label className="space-y-1 md:space-y-0">
-                    <span className="text-xs font-medium text-muted-foreground md:hidden">区分</span>
+                    <span className="sr-only">区分</span>
                     <Select value={line.category} onValueChange={value => updateLine(index, { category: value as 'fee' | 'expense' })}>
                       <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -432,22 +434,22 @@ function EstimatePanelV2({
                     </Select>
                   </label>
                   <label className="space-y-1 md:space-y-0">
-                    <span className="text-xs font-medium text-muted-foreground md:hidden">数量</span>
+                    <span className="sr-only">数量</span>
                     <Input className="bg-white text-right" type="number" min={1} value={line.quantity} onChange={event => updateLine(index, { quantity: Number(event.target.value) || 1 })} />
                   </label>
                   <label className="space-y-1 md:space-y-0">
-                    <span className="text-xs font-medium text-muted-foreground md:hidden">単位</span>
+                    <span className="sr-only">単位</span>
                     <Input className="bg-white" value={line.unit ?? ''} onChange={event => updateLine(index, { unit: event.target.value })} />
                   </label>
                   <label className="space-y-1 md:space-y-0">
-                    <span className="text-xs font-medium text-muted-foreground md:hidden">単価</span>
+                    <span className="sr-only">単価</span>
                     <div className="relative">
                       <Input className="bg-white pr-8 text-right" type="number" min={0} value={line.unit_price} onChange={event => updateLine(index, { unit_price: Number(event.target.value) || 0 })} />
                       <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">円</span>
                     </div>
                   </label>
                   <label className="space-y-1 md:space-y-0">
-                    <span className="text-xs font-medium text-muted-foreground md:hidden">税率</span>
+                    <span className="sr-only">税率</span>
                     <Select value={String(line.tax_rate)} onValueChange={value => updateLine(index, { tax_rate: Number(value) })}>
                       <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -460,9 +462,12 @@ function EstimatePanelV2({
                   <div className="flex items-center justify-end text-sm font-medium">
                     {formatYen(calculated.items[index]?.total_amount ?? 0)}
                   </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeLine(index)}>削除</Button>
-                </div>
-              ))}
+                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => removeLine(index)} aria-label="明細を削除">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  </div>
+                ))}
+              </div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => addLine('fee')}>報酬を追加</Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => addLine('expense')}>実費を追加</Button>

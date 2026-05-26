@@ -36,13 +36,13 @@ export function Sidebar({ userEmail, companyName, isOpen, onClose }: SidebarProp
   return (
     <aside
       className={cn(
-        'w-64 flex flex-col bg-white border-r border-border',
+        'flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-border bg-white',
         'fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-in-out',
         'lg:static lg:translate-x-0 lg:z-auto lg:transform-none lg:transition-none',
         isOpen ? 'translate-x-0' : '-translate-x-full'
       )}
     >
-      <div className="p-4 border-b relative">
+      <div className="relative shrink-0 border-b p-4">
         <div className="flex items-center gap-3 pr-8">
           <Image
             src="/brand/icon-64.png"
@@ -61,7 +61,7 @@ export function Sidebar({ userEmail, companyName, isOpen, onClose }: SidebarProp
           </button>
         )}
       </div>
-      <nav className="flex-1 p-2 space-y-1">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
         {navItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
@@ -79,7 +79,7 @@ export function Sidebar({ userEmail, companyName, isOpen, onClose }: SidebarProp
           </Link>
         ))}
       </nav>
-      <div className="p-2 border-t">
+      <div className="shrink-0 border-t bg-white p-2">
         <form action={logout}>
           <Button variant="ghost" size="sm" className="w-full justify-start gap-3" type="submit">
             <LogOut className="h-4 w-4" />
