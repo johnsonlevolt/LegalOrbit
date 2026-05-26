@@ -44,20 +44,45 @@ export default async function BillingDocumentPrintPage(props: Props) {
               background: #ffffff !important;
               margin: 0 !important;
               padding: 0 !important;
+              width: 210mm !important;
+            }
+            body * {
+              visibility: hidden !important;
+            }
+            .print-page,
+            .print-page * {
+              visibility: visible !important;
             }
             .print-page {
+              position: static !important;
               margin: 0 !important;
               padding: 0 !important;
               background: #ffffff !important;
+              width: 190mm !important;
+              max-width: 190mm !important;
             }
             .print-sheet {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
               width: 190mm !important;
               min-height: 277mm !important;
               max-height: 277mm !important;
               overflow: hidden !important;
               box-shadow: none !important;
               border: 0 !important;
-              padding: 9mm !important;
+              padding: 8mm !important;
+            }
+            .print-sheet header {
+              padding-bottom: 4mm !important;
+            }
+            .print-sheet table {
+              font-size: 10.5px !important;
+            }
+            .print-sheet th,
+            .print-sheet td {
+              padding-top: 2mm !important;
+              padding-bottom: 2mm !important;
             }
           }
         `}
