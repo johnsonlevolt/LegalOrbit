@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { PrintActions } from '@/components/print/print-actions'
 import { getBillingDocument, getBillingProfile, getSealImageUrl } from '@/lib/actions/billing'
 import { formatYen } from '@/lib/billing/plans'
 import type { BillingDocument, EstimateLineItem, TaxSummaryLine } from '@/types/database'
@@ -31,7 +32,21 @@ export default async function BillingDocumentPrintPage(props: Props) {
 
   return (
     <main className="mx-auto max-w-[900px] bg-neutral-100 p-6 text-slate-950 print:bg-white print:p-0">
-      <p className="mb-4 text-right text-sm text-slate-500 print:hidden">ブラウザの印刷機能でPDF保存できます。</p>
+      <style>
+        {`
+          @page { size: A4; margin: 10mm; }
+          @media print {
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            html, body {
+              background: #ffffff !important;
+            }
+          }
+        `}
+      </style>
+      <PrintActions fileName={`${typeLabel}-${document.document_number}`} />
       <section className="relative min-h-[1120px] overflow-hidden bg-white px-12 py-10 shadow-sm ring-1 ring-slate-200 print:min-h-screen print:shadow-none print:ring-0">
         <header className="border-b-2 border-slate-900 pb-5">
           <h1 className="text-center text-4xl font-bold tracking-[0.35em] text-slate-950">{typeLabel}</h1>
