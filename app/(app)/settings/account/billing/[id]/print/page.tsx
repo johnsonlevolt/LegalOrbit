@@ -34,7 +34,7 @@ export default async function BillingDocumentPrintPage(props: Props) {
     <main className="print-page mx-auto max-w-[900px] bg-neutral-100 p-6 text-slate-950 print:bg-white print:p-0">
       <style>
         {`
-          @page { size: A4; margin: 10mm; }
+          @page { size: A4; margin: 0; }
           @media print {
             * {
               -webkit-print-color-adjust: exact !important;
@@ -58,20 +58,20 @@ export default async function BillingDocumentPrintPage(props: Props) {
               margin: 0 !important;
               padding: 0 !important;
               background: #ffffff !important;
-              width: 190mm !important;
-              max-width: 190mm !important;
+              width: 210mm !important;
+              max-width: 210mm !important;
             }
             .print-sheet {
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
-              width: 190mm !important;
-              min-height: 277mm !important;
-              max-height: 277mm !important;
+              width: 210mm !important;
+              min-height: 297mm !important;
+              max-height: 297mm !important;
               overflow: hidden !important;
               box-shadow: none !important;
               border: 0 !important;
-              padding: 8mm !important;
+              padding: 12mm !important;
             }
             .print-sheet header {
               padding-bottom: 4mm !important;
@@ -231,7 +231,7 @@ export default async function BillingDocumentPrintPage(props: Props) {
         <img
           src={legalOrbitLogo.src}
           alt="Legal Orbit"
-          className="absolute bottom-8 right-10 h-auto w-[155px] opacity-90 print:bottom-[9mm] print:right-[9mm]"
+          className="absolute bottom-8 right-10 h-auto w-[155px] opacity-90 print:bottom-[12mm] print:right-[12mm]"
         />
       </section>
     </main>
